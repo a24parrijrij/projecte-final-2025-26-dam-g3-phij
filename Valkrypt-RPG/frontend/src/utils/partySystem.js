@@ -15,6 +15,8 @@ function uid(prefix = 'id') {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const MAX_HERO_LEVEL = 30;
+
 const RARITY_LABELS = {
   common: 'Común',
   uncommon: 'Poco común',
@@ -96,11 +98,26 @@ export function roleArchetype(roleLabel = '') {
 }
 
 function defaultStatsForArchetype(archetype) {
-  if (archetype === 'warrior') return { attack: 9, defense: 6 };
-  if (archetype === 'rogue') return { attack: 10, defense: 3 };
-  if (archetype === 'mage') return { attack: 11, defense: 2 };
-  if (archetype === 'cleric') return { attack: 8, defense: 5 };
-  return { attack: 8, defense: 4 };
+  if (archetype === 'warrior') return { attack: 9, defense: 6, magic: 2, agility: 4, maxHp: 56 };
+  if (archetype === 'rogue') return { attack: 10, defense: 3, magic: 3, agility: 8, maxHp: 44 };
+  if (archetype === 'mage') return { attack: 11, defense: 2, magic: 10, agility: 5, maxHp: 40 };
+  if (archetype === 'cleric') return { attack: 8, defense: 5, magic: 8, agility: 4, maxHp: 48 };
+  return { attack: 8, defense: 4, magic: 4, agility: 4, maxHp: 46 };
+}
+
+function levelGrowthForArchetype(archetype) {
+  if (archetype === 'warrior') return { attack: 2, defense: 2, magic: 0, agility: 1, maxHp: 8 };
+  if (archetype === 'rogue') return { attack: 2, defense: 1, magic: 1, agility: 2, maxHp: 6 };
+  if (archetype === 'mage') return { attack: 1, defense: 1, magic: 3, agility: 1, maxHp: 5 };
+  if (archetype === 'cleric') return { attack: 1, defense: 2, magic: 2, agility: 1, maxHp: 7 };
+  return { attack: 1, defense: 1, magic: 1, agility: 1, maxHp: 6 };
+}
+
+export function xpToNextLevel(level = 1) {
+  const currentLevel = clamp(toInt(level, 1), 1, MAX_HERO_LEVEL);
+  const linear = 70 * currentLevel;
+  const quadratic = 14 * currentLevel * currentLevel;
+  return 80 + linear + quadratic;
 }
 
 function defaultSkillsForArchetype(archetype) {
@@ -427,7 +444,10 @@ export function normalizeHeroState(rawHero, index = 0) {
   const id = String(rawHero?.id || rawHero?._id || `hero_${index + 1}`);
   const archetype = roleArchetype(rawHero?.role);
   const baseStats = defaultStatsForArchetype(archetype);
-  const maxHp = Math.max(1, toInt(rawHero?.maxHp, toInt(rawHero?.hp, 30)));
+  const level = clamp(toInt(rawHero?.level, 1), 1, MAX_HERO_LEVEL);
+  const experience = Math.max(0, toInt(rawHero?.experience, 0));
+  const nextLevelXp = Math.max(1, toInt(rawHero?.nextLevelXp, xpToNextLevel(level)));
+  const maxHp = Math.max(1, toInt(rawHero?.maxHp, toInt(rawHero?.hp, baseStats.maxHp)));
   const hp = clamp(toInt(rawHero?.hp, maxHp), 0, maxHp);
 
   const inventoryRaw = Array.isArray(rawHero?.inventory) && rawHero.inventory.length > 0
@@ -465,8 +485,13 @@ export function normalizeHeroState(rawHero, index = 0) {
     icon: String(rawHero?.icon || '⚔️'),
     hp,
     maxHp,
+    level,
+    experience,
+    nextLevelXp,
     attack: toInt(rawHero?.attack, baseStats.attack),
     defense: toInt(rawHero?.defense, baseStats.defense),
+    magic: toInt(rawHero?.magic, baseStats.magic),
+    agility: toInt(rawHero?.agility, baseStats.agility),
     archetype,
     guarding: Boolean(rawHero?.guarding),
     statusEffects: normalizeStatusEffects(rawHero?.statusEffects, `${id}_status`),
@@ -488,12 +513,86 @@ function equipmentBonus(hero, key) {
 }
 
 export function computeHeroCombatStats(hero) {
-  if (!hero) return { attack: 0, defense: 0, skillAccuracy: 0, healPower: 0 };
+  if (!hero) return { attack: 0, defense: 0, magic: 0, agility: 0, skillAccuracy: 0, healPower: 0 };
   return {
     attack: toInt(hero.attack, 0) + equipmentBonus(hero, 'attack'),
     defense: toInt(hero.defense, 0) + equipmentBonus(hero, 'defense'),
+    magic: toInt(hero.magic, 0),
+    agility: toInt(hero.agility, 0),
     skillAccuracy: equipmentBonus(hero, 'skillAccuracy'),
     healPower: equipmentBonus(hero, 'healPower')
+  };
+}
+
+function applyAutoLevelUp(hero) {
+  const leveledHero = { ...hero };
+  const growth = levelGrowthForArchetype(leveledHero.archetype || roleArchetype(leveledHero.role));
+  const previousMaxHp = Math.max(1, toInt(leveledHero.maxHp, 1));
+  leveledHero.level = clamp(toInt(leveledHero.level, 1) + 1, 1, MAX_HERO_LEVEL);
+  leveledHero.attack = Math.max(1, toInt(leveledHero.attack, 1) + growth.attack);
+  leveledHero.defense = Math.max(0, toInt(leveledHero.defense, 0) + growth.defense);
+  leveledHero.magic = Math.max(0, toInt(leveledHero.magic, 0) + growth.magic);
+  leveledHero.agility = Math.max(0, toInt(leveledHero.agility, 0) + growth.agility);
+  leveledHero.maxHp = Math.max(1, previousMaxHp + growth.maxHp);
+  const hpBoost = Math.max(1, Math.round(growth.maxHp * 0.7));
+  leveledHero.hp = Math.min(leveledHero.maxHp, Math.max(0, toInt(leveledHero.hp, 0) + hpBoost));
+  leveledHero.nextLevelXp = xpToNextLevel(leveledHero.level);
+  return leveledHero;
+}
+
+export function grantExperienceToParty(party, enemyType = 'escaramuza', round = 1) {
+  const normalized = normalizePartyState(party);
+  const xpBaseByType = {
+    escaramuza: 46,
+    elite: 82,
+    jefe: 132
+  };
+  const encounterType = Object.prototype.hasOwnProperty.call(xpBaseByType, enemyType) ? enemyType : 'escaramuza';
+  const roundBonus = Math.max(0, toInt(round, 1) - 1) * 3;
+  const xpPerHero = xpBaseByType[encounterType] + roundBonus;
+  const logs = [];
+
+  const partyWithXp = normalized.map((hero) => {
+    if (toInt(hero.hp, 0) <= 0) return hero;
+    const nextHero = { ...hero };
+    nextHero.experience = Math.max(0, toInt(nextHero.experience, 0) + xpPerHero);
+    const levelUps = [];
+
+    while (
+      toInt(nextHero.level, 1) < MAX_HERO_LEVEL
+      && nextHero.experience >= Math.max(1, toInt(nextHero.nextLevelXp, xpToNextLevel(nextHero.level)))
+    ) {
+      nextHero.experience -= Math.max(1, toInt(nextHero.nextLevelXp, xpToNextLevel(nextHero.level)));
+      const beforeLevel = toInt(nextHero.level, 1);
+      const grown = applyAutoLevelUp(nextHero);
+      const gained = {
+        attack: Math.max(0, toInt(grown.attack, 0) - toInt(nextHero.attack, 0)),
+        defense: Math.max(0, toInt(grown.defense, 0) - toInt(nextHero.defense, 0)),
+        magic: Math.max(0, toInt(grown.magic, 0) - toInt(nextHero.magic, 0)),
+        agility: Math.max(0, toInt(grown.agility, 0) - toInt(nextHero.agility, 0)),
+        maxHp: Math.max(0, toInt(grown.maxHp, 0) - toInt(nextHero.maxHp, 0))
+      };
+      levelUps.push({ from: beforeLevel, to: grown.level, gained });
+      Object.assign(nextHero, grown);
+    }
+
+    logs.push({
+      heroId: nextHero.id,
+      heroName: nextHero.name,
+      xpGained: xpPerHero,
+      level: nextHero.level,
+      nextLevelXp: nextHero.nextLevelXp,
+      experience: nextHero.experience,
+      levelUps
+    });
+
+    return nextHero;
+  });
+
+  return {
+    party: partyWithXp,
+    xpPerHero,
+    logs
   };
 }
 
@@ -524,12 +623,13 @@ export function useHeroConsumable(party, sourceHeroId, itemId, targetHeroId) {
 
   const sourceHero = nextParty[sourceIndex];
   const targetHero = nextParty[targetIndex];
-  const itemIndex = sourceHero.inventory.findIndex((item) => item.id === itemId && item.type === 'consumable');
+  const sourceInventory = Array.isArray(sourceHero.inventory) ? [...sourceHero.inventory] : [];
+  const itemIndex = sourceInventory.findIndex((item) => item.id === itemId && item.type === 'consumable');
   if (itemIndex === -1) {
     return { party: nextParty, error: 'El objeto consumible no está disponible en este inventario.' };
   }
 
-  const item = sourceHero.inventory[itemIndex];
+  const item = sourceInventory[itemIndex];
   if (item.quantity <= 0) {
     return { party: nextParty, error: 'No quedan unidades de ese objeto.' };
   }
@@ -550,11 +650,16 @@ export function useHeroConsumable(party, sourceHeroId, itemId, targetHeroId) {
 
   const updatedItem = { ...item, quantity: item.quantity - 1 };
   if (updatedItem.quantity <= 0) {
-    sourceHero.inventory.splice(itemIndex, 1);
+    sourceInventory.splice(itemIndex, 1);
   } else {
-    sourceHero.inventory[itemIndex] = updatedItem;
+    sourceInventory[itemIndex] = updatedItem;
   }
-  nextParty[sourceIndex] = { ...sourceHero, inventory: mergeStackedItems(sourceHero.inventory) };
+
+  const sourceBaseHero = sourceIndex === targetIndex ? healedTarget : sourceHero;
+  nextParty[sourceIndex] = {
+    ...sourceBaseHero,
+    inventory: mergeStackedItems(sourceInventory)
+  };
 
   const cleanseText = cleansedCount > 0 ? ` Elimina ${cleansedCount} estado(s) negativo(s).` : '';
   const message = `${sourceHero.name} usa ${item.name} sobre ${healedTarget.name} y restaura ${healRoll} HP.${cleanseText}`;

@@ -72,6 +72,23 @@
 
             <div v-if="isMyCharacterMissing" class="character-setup">
               <label>Primero elige tu personaje:</label>
+              <div class="preset-grid">
+                <button
+                  v-for="preset in CHARACTER_PRESETS"
+                  :key="preset.id"
+                  class="preset-card"
+                  :class="{
+                    selected: isMySelectedCharacter(preset.name),
+                    taken: characterTakenByOther(preset.name)
+                  }"
+                  :disabled="savingCharacter || characterTakenByOther(preset.name)"
+                  @click="choosePresetCharacter(preset)"
+                >
+                  <strong>{{ preset.icon }} {{ preset.name }}</strong>
+                  <small>{{ preset.archetype }}</small>
+                  <span>{{ preset.summary }}</span>
+                </button>
+              </div>
               <div class="character-row">
                 <input
                   v-model="characterDraft"
@@ -94,7 +111,7 @@
                   selected: myRoleId === role.id,
                   taken: roleTakenBy(role.id) && roleTakenBy(role.id) !== currentUserId
                 }"
-                :disabled="assigningRole || isMyCharacterMissing || (roleTakenBy(role.id) && roleTakenBy(role.id) !== currentUserId)"
+                :disabled="assigningRole || (roleTakenBy(role.id) && roleTakenBy(role.id) !== currentUserId)"
                 @click="assignRole(role.id)"
               >
                 <strong>{{ role.label }}</strong>
@@ -155,6 +172,38 @@
           </div>
 
           <div v-else class="waiting-phase">
+            <div v-if="isMyCharacterMissing" class="character-setup">
+              <label>Abans d'iniciar, tria el teu personatge:</label>
+              <div class="preset-grid">
+                <button
+                  v-for="preset in CHARACTER_PRESETS"
+                  :key="preset.id"
+                  class="preset-card"
+                  :class="{
+                    selected: isMySelectedCharacter(preset.name),
+                    taken: characterTakenByOther(preset.name)
+                  }"
+                  :disabled="savingCharacter || characterTakenByOther(preset.name)"
+                  @click="choosePresetCharacter(preset)"
+                >
+                  <strong>{{ preset.icon }} {{ preset.name }}</strong>
+                  <small>{{ preset.archetype }}</small>
+                  <span>{{ preset.summary }}</span>
+                </button>
+              </div>
+              <div class="character-row">
+                <input
+                  v-model="characterDraft"
+                  type="text"
+                  maxlength="40"
+                  placeholder="Nom del personatge"
+                />
+                <button class="btn-side" @click="saveCharacter" :disabled="savingCharacter || !characterDraft.trim()">
+                  {{ savingCharacter ? 'Guardant...' : 'Guardar personatge' }}
+                </button>
+              </div>
+            </div>
+
             <div class="phase-banner">
               <strong>Sala en espera</strong>
               <span>El anfitrion debe iniciar la partida para comenzar la fase de roles.</span>
@@ -246,6 +295,7 @@ const chatMessage = ref('');
 const systemMessage = ref('');
 const currentBackground = ref('');
 const characterDraft = ref(String(currentUser.value?.character || '').trim());
+const selectedCharacterId = ref('');
 
 const assigningRole = ref(false);
 const submittingChoice = ref(false);
@@ -254,6 +304,38 @@ const savingCharacter = ref(false);
 const logContainer = ref(null);
 let refreshTimer = null;
 const listenerDisposers = [];
+const lastRoomSnapshot = ref('');
+
+const CHARACTER_PRESETS = [
+  {
+    id: 'kaelen',
+    name: 'Kaelen',
+    archetype: 'Guerrer ex-capità',
+    summary: 'Front sòlid, control de línia i resistència.',
+    icon: '⚔️'
+  },
+  {
+    id: 'vax',
+    name: `Vax "Dedos de Hollín"`,
+    archetype: 'Pícar estafador',
+    summary: 'Dany ràpid, evasió i precisió crítica.',
+    icon: '🗡️'
+  },
+  {
+    id: 'lyra',
+    name: 'Lyra de l’Alba',
+    archetype: 'Sanadora de camp',
+    summary: 'Suport, estabilització i control de risc.',
+    icon: '✨'
+  },
+  {
+    id: 'thoren',
+    name: 'Thoren Ferrorscala',
+    archetype: 'Guardia rúnic',
+    summary: 'Defensa d’escuadra i mitigació de dany.',
+    icon: '🛡️'
+  }
+];
 
 const normalizedId = (value) => String(value || '').trim();
 
@@ -306,6 +388,22 @@ const missionLog = computed(() => {
 const playerInitials = (username) => {
   const value = String(username || '').trim();
   return value ? value.slice(0, 2).toUpperCase() : '??';
+};
+
+const normalizeCharacterName = (value) => String(value || '').trim().toLowerCase();
+
+const characterTakenByOther = (characterName) => {
+  const target = normalizeCharacterName(characterName);
+  return roomPlayers.value.some((player) => {
+    const samePlayer = normalizedId(player?.userId) === currentUserId;
+    if (samePlayer) return false;
+    return normalizeCharacterName(player?.character) === target;
+  });
+};
+
+const isMySelectedCharacter = (characterName) => {
+  const me = roomPlayers.value.find((player) => normalizedId(player.userId) === currentUserId);
+  return normalizeCharacterName(me?.character) === normalizeCharacterName(characterName);
 };
 
 const usernameById = (userId) => {
@@ -416,6 +514,47 @@ const setupWebsocketListeners = () => {
   );
 };
 
+const buildRoomSnapshot = (room) => {
+  if (!room || typeof room !== 'object') return '';
+  const players = (Array.isArray(room.players) ? room.players : []).map((player) => ({
+    userId: normalizedId(player?.userId),
+    username: String(player?.username || ''),
+    character: String(player?.character || ''),
+    role: String(player?.role || '')
+  })).sort((a, b) => a.userId.localeCompare(b.userId));
+
+  const gs = room?.gameState && typeof room.gameState === 'object' ? room.gameState : {};
+  const roleAssignments = Object.entries(gs.roleAssignments || {})
+    .map(([uid, role]) => [normalizedId(uid), String(role || '')])
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  const choices = Array.isArray(gs.choices) ? gs.choices.map((choice) => ({
+    id: String(choice?.id || ''),
+    label: String(choice?.label || '')
+  })) : [];
+
+  return JSON.stringify({
+    roomCode: String(room.roomCode || ''),
+    roomName: String(room.roomName || ''),
+    hostId: normalizedId(room.hostId),
+    status: String(room.status || ''),
+    maxPlayers: Number(room.maxPlayers || 0),
+    players,
+    phase: String(gs.phase || ''),
+    currentTurnUserId: normalizedId(gs.currentTurnUserId),
+    currentTurnIndex: Number(gs.currentTurnIndex || 0),
+    turnRound: Number(gs.turnRound || 0),
+    day: Number(gs.day || 0),
+    dayLimit: Number(gs.dayLimit || 0),
+    sceneIndex: Number(gs.sceneIndex || 0),
+    sceneTitle: String(gs.sceneTitle || ''),
+    sceneText: String(gs.sceneText || ''),
+    metrics: gs.metrics || {},
+    choices,
+    roleAssignments
+  });
+};
+
 const refreshRoom = async () => {
   try {
     const response = await axios.get(`${API_URL}/rooms/${roomCode.value}`, {
@@ -427,6 +566,12 @@ const refreshRoom = async () => {
     }
 
     const room = response.data.room;
+    const snapshot = buildRoomSnapshot(room);
+    if (snapshot === lastRoomSnapshot.value) {
+      return;
+    }
+    lastRoomSnapshot.value = snapshot;
+
     roomData.value = room;
     roomPlayers.value = Array.isArray(room.players) ? room.players : [];
     hostId.value = room.hostId || '';
@@ -512,7 +657,20 @@ const saveCharacter = async () => {
   }
 };
 
+const choosePresetCharacter = async (preset) => {
+  const value = String(preset?.name || '').trim();
+  if (!value) return;
+  if (characterTakenByOther(value)) {
+    setToast('Aquest personatge ja està ocupat per un altre jugador.');
+    return;
+  }
+  selectedCharacterId.value = String(preset.id || '');
+  characterDraft.value = value;
+  await saveCharacter();
+};
+
 const assignRole = async (roleId) => {
+  if (!roleId) return;
   assigningRole.value = true;
   try {
     const response = await axios.post(`${API_URL}/rooms/role`, {
@@ -530,7 +688,9 @@ const assignRole = async (roleId) => {
     setToast(`Rol ${roleLabelById(roleId)} asignado.`);
     await refreshRoom();
   } catch (error) {
-    setToast(error.response?.data?.message || error.message || 'No se pudo asignar rol.');
+    const errorMessage = error.response?.data?.message || error.message || 'No se pudo asignar rol.';
+    setToast(errorMessage, 5000);
+    try { window.alert(errorMessage); } catch {}
   } finally {
     assigningRole.value = false;
   }
@@ -613,7 +773,13 @@ const leaveRoom = async () => {
 };
 
 const confirmLeaveRoom = () => {
-  if (confirm('Seguro que quieres salir de la sala?')) leaveRoom();
+  try {
+    if (window.confirm('Seguro que quieres salir de la sala?')) {
+      leaveRoom();
+    }
+  } catch {
+    leaveRoom();
+  }
 };
 
 const deleteRoom = async () => {
@@ -622,7 +788,11 @@ const deleteRoom = async () => {
     return;
   }
 
-  if (!confirm('Eliminar esta sala para todos?')) return;
+  try {
+    if (!window.confirm('Eliminar esta sala para todos?')) return;
+  } catch {
+    // continua si el navegador bloquea el confirm
+  }
 
   try {
     const response = await axios.post(`${API_URL}/rooms/delete`, {
@@ -663,6 +833,9 @@ onMounted(async () => {
   currentBackground.value = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 1080'><rect fill='%23050505' width='1920' height='1080'/><defs><linearGradient id='g' x1='0' y1='0' x2='100' y2='100'><stop offset='0%25' style='stop-color:%23c5a059;stop-opacity:0.12'/><stop offset='100%25' style='stop-color:%23000;stop-opacity:0.5'/></linearGradient></defs><rect fill='url(%23g)' width='1920' height='1080'/></svg>";
 
   await initRoom();
+  const myCharacter = String(currentUser.value?.character || '').trim().toLowerCase();
+  const preset = CHARACTER_PRESETS.find((entry) => entry.name.toLowerCase() === myCharacter);
+  if (preset) selectedCharacterId.value = preset.id;
 
   try {
     await wsService.connect();
