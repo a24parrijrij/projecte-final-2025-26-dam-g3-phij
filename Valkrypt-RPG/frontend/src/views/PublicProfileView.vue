@@ -2,15 +2,15 @@
   <div class="public-profile-page">
     <div class="ambient-layer"></div>
     <nav class="top-nav">
-      <button class="nav-btn" @click="goBack">← VOLVER</button>
-      <h1>PERFIL PÚBLICO</h1>
+      <button class="nav-btn" @click="goBack">← TORNAR</button>
+      <h1>PERFIL PÚBLIC</h1>
       <button class="nav-btn" :disabled="loading" @click="loadProfile">
-        {{ loading ? 'CARGANDO...' : 'RECARGAR' }}
+        {{ loading ? 'CARREGANT...' : 'RECARREGA' }}
       </button>
     </nav>
 
     <main class="content-shell">
-      <p v-if="loading" class="state-line">Consultando ficha pública...</p>
+      <p v-if="loading" class="state-line">Consultant fitxa pública...</p>
       <p v-else-if="errorMsg" class="state-line error">{{ errorMsg }}</p>
 
       <template v-else-if="profile">
@@ -21,11 +21,11 @@
           </div>
 
           <div class="identity">
-            <small>EXPEDIENTE DE ALIADO</small>
+            <small>EXPEDIENT D'ALIAT</small>
             <h2>{{ profile.profile?.displayName || profile.username }}</h2>
             <p>@{{ profile.username }}</p>
             <p class="presence" :class="profile.presence?.status">
-              {{ profile.presence?.statusLabel || 'Desconectado' }}
+              {{ profile.presence?.statusLabel || 'Desconnectat' }}
             </p>
           </div>
 
@@ -92,7 +92,7 @@
             <h3>LOGROS DEL ALIADO</h3>
             <small>{{ unlockedCount }} desbloqueados</small>
           </header>
-          <p v-if="achievements.length === 0" class="ach-empty">Sin logros registrados.</p>
+          <p v-if="achievements.length === 0" class="ach-empty">Sense assoliments registrats.</p>
           <div v-else class="ach-list">
             <article
               v-for="achievement in achievements"
@@ -161,8 +161,8 @@ const loadProfile = async () => {
     }
     profile.value = data.profile || null;
   } catch (error) {
-    console.error('Error en perfil público:', error);
-    errorMsg.value = error.message || 'No se pudo cargar el perfil público.';
+    console.error('Error en perfil públic:', error);
+    errorMsg.value = error.message || "No s'ha pogut carregar el perfil públic.";
     profile.value = null;
   } finally {
     loading.value = false;

@@ -1,30 +1,31 @@
 <template>
   <div class="friends-hub">
+    <div ref="vantaHost" class="vanta-layer"></div>
     <div class="fx fog"></div>
     <div class="fx vignette"></div>
     <nav class="hub-nav">
-      <router-link to="/userpage" class="back-link">← VOLVER AL BASTIÓN</router-link>
+      <router-link to="/userpage" class="back-link">← TORNAR AL BASTIÓ</router-link>
       <div class="nav-title">
         <small>VALKRYPT SOCIAL HUB</small>
-        <h1>ALIANZAS Y MENSAJES</h1>
+        <h1>ALIANCES I MISSATGES</h1>
       </div>
-      <button class="btn-nav" @click="goToLobby">ABRIR LOBBY</button>
+      <button class="btn-nav" @click="goToLobby">OBRIR LOBBY</button>
     </nav>
     <section class="summary-grid">
       <article class="summary-card">
-        <span class="label">ALIADOS</span>
+        <span class="label">ALIATS</span>
         <strong>{{ friends.length }}</strong>
       </article>
       <article class="summary-card online">
-        <span class="label">ACTIVOS</span>
+        <span class="label">ACTIUS</span>
         <strong>{{ onlineFriendsCount }}</strong>
       </article>
       <article class="summary-card warn">
-        <span class="label">SOLICITUDES</span>
+        <span class="label">SOL·LICITUDS</span>
         <strong>{{ incomingRequests.length }}</strong>
       </article>
       <article class="summary-card">
-        <span class="label">SALAS ABIERTAS</span>
+        <span class="label">SALES OBERTES</span>
         <strong>{{ activeRooms.length }}</strong>
       </article>
     </section>
@@ -43,23 +44,23 @@
               v-model="searchCandidate"
               type="text"
               class="search-input"
-              placeholder="Nombre de usuario"
+              placeholder="Nom d'usuari"
               @keydown.enter.prevent="performUserSearch"
             />
             <button class="btn-primary" :disabled="searchingUsers" @click="performUserSearch">
-              {{ searchingUsers ? 'BUSCANDO...' : 'BUSCAR' }}
+              {{ searchingUsers ? 'CERCANT...' : 'CERCAR' }}
             </button>
           </div>
           <div v-if="searchResults.length > 0" class="search-results">
             <article v-for="candidate in searchResults" :key="candidate" class="result-card">
               <span>{{ candidate }}</span>
               <button class="btn-primary" :disabled="sendingRequestTo === candidate" @click="sendFriendRequest(candidate)">
-                {{ sendingRequestTo === candidate ? 'ENVIANDO...' : 'ENVIAR SOLICITUD' }}
+                {{ sendingRequestTo === candidate ? 'ENVIANT...' : 'ENVIAR SOL·LICITUD' }}
               </button>
             </article>
           </div>
           <p v-else-if="searchTouched && !searchingUsers" class="mini-note">
-            No hay resultados con ese nombre.
+            No hi ha resultats amb aquest nom.
           </p>
         </div>
         <div class="requests-box">
@@ -69,8 +70,8 @@
             <article v-for="username in incomingRequests" :key="username" class="request-card">
               <strong>{{ username }}</strong>
               <div class="request-actions">
-                <button class="btn-accept" :disabled="processingRequest === username" @click="acceptFriendRequest(username)">ACEPTAR</button>
-                <button class="btn-reject" :disabled="processingRequest === username" @click="rejectFriendRequest(username)">RECHAZAR</button>
+                <button class="btn-accept" :disabled="processingRequest === username" @click="acceptFriendRequest(username)">ACCEPTAR</button>
+                <button class="btn-reject" :disabled="processingRequest === username" @click="rejectFriendRequest(username)">REBUTJAR</button>
               </div>
             </article>
           </div>
@@ -86,9 +87,9 @@
       <section class="panel allies-panel">
         <header class="panel-head">
           <h2>Aliados</h2>
-          <input v-model="friendFilter" type="text" class="search-input" placeholder="Filtrar aliados" />
+          <input v-model="friendFilter" type="text" class="search-input" placeholder="Filtrar aliats" />
         </header>
-        <div v-if="filteredFriends.length === 0" class="empty-note">No hay aliados para mostrar.</div>
+        <div v-if="filteredFriends.length === 0" class="empty-note">No hi ha aliats per mostrar.</div>
         <div v-else class="allies-list">
           <article
             v-for="friend in filteredFriends"
@@ -115,11 +116,11 @@
           <small v-if="selectedChatFriend">Con {{ selectedChatFriend }}</small>
         </header>
         <div v-if="!selectedChatFriend" class="empty-note chat-empty">
-          Selecciona un aliado para abrir conversación.
+          Selecciona un aliat per obrir conversa.
         </div>
         <template v-else>
           <div class="chat-messages" ref="chatContainer">
-            <div v-if="loadingChat" class="mini-note">Cargando mensajes...</div>
+            <div v-if="loadingChat" class="mini-note">Carregant missatges...</div>
             <article
               v-for="msg in chatMessages"
               :key="msg.id"
@@ -130,7 +131,7 @@
               <p>{{ msg.message }}</p>
             </article>
             <div v-if="chatMessages.length === 0 && !loadingChat" class="mini-note">
-              Aún no hay mensajes en esta conversación.
+              Encara no hi ha missatges en aquesta conversa.
             </div>
           </div>
           <div class="chat-send-row">
@@ -139,11 +140,11 @@
               class="chat-input"
               rows="2"
               maxlength="1000"
-              placeholder="Escribe un mensaje..."
+              placeholder="Escriu un missatge..."
               @keydown.enter.exact.prevent="sendChatMessage"
             ></textarea>
             <button class="btn-primary" :disabled="sendingChat || !chatDraft.trim()" @click="sendChatMessage">
-              {{ sendingChat ? 'ENVIANDO...' : 'ENVIAR' }}
+              {{ sendingChat ? 'ENVIANT...' : 'ENVIAR' }}
             </button>
           </div>
         </template>
@@ -159,9 +160,9 @@
           </div>
         </header>
         <p v-if="roomsError" class="error-msg">{{ roomsError }}</p>
-        <div v-if="loadingRooms" class="mini-note">Leyendo salas abiertas...</div>
+        <div v-if="loadingRooms" class="mini-note">Llegint sales obertes...</div>
         <div v-else-if="activeRooms.length === 0" class="empty-note">
-          No hay salas disponibles ahora mismo.
+          No hi ha sales disponibles ara mateix.
         </div>
         <div v-else class="rooms-list">
           <article v-for="room in activeRooms" :key="room.roomCode" class="room-card">
@@ -189,7 +190,7 @@
               {{
                 joiningRoomCode === room.roomCode
                   ? 'UNIENDO...'
-                  : (isUserInRoom(room) ? 'ENTRAR A SALA' : 'UNIRSE A ESTA SALA')
+                  : (isUserInRoom(room) ? 'ENTRAR A LA SALA' : 'UNIR-SE A AQUESTA SALA')
               }}
             </button>
           </article>
@@ -203,6 +204,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 const router = useRouter();
+const vantaHost = ref(null);
+let vantaEffect = null;
 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
 const userId = user.value?.id || user.value?._id || '';
 const myUsername = user.value?.username || '';
@@ -274,8 +277,8 @@ const setLocalUserSocial = () => {
 const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
-const loadSocialState = async () => {
-  loadingSocial.value = true;
+const loadSocialState = async ({ silent = false } = {}) => {
+  if (!silent) loadingSocial.value = true;
   try {
     const response = await fetch(`/api/social/state/${encodeURIComponent(userId)}`, {
       headers: authHeaders()
@@ -302,10 +305,10 @@ const loadSocialState = async () => {
     }
     setLocalUserSocial();
   } catch (error) {
-    console.error('Error cargando estado social:', error);
-    statusMessage.value = 'No se pudo cargar el estado social.';
+    console.error("Error carregant l'estat social:", error);
+    statusMessage.value = "No s'ha pogut carregar l'estat social.";
   } finally {
-    loadingSocial.value = false;
+    if (!silent) loadingSocial.value = false;
   }
 };
 const performUserSearch = async () => {
@@ -313,7 +316,7 @@ const performUserSearch = async () => {
   searchTouched.value = true;
   searchResults.value = [];
   if (query.length < 2) {
-    statusMessage.value = 'Escribe al menos 2 caracteres para buscar usuarios.';
+    statusMessage.value = 'Escriu almenys 2 caràcters per cercar usuaris.';
     return;
   }
   searchingUsers.value = true;
@@ -327,8 +330,8 @@ const performUserSearch = async () => {
     }
     searchResults.value = Array.isArray(data.users) ? data.users : [];
   } catch (error) {
-    console.error('Error buscando usuarios:', error);
-    statusMessage.value = error.message || 'No se pudo buscar usuarios.';
+    console.error('Error cercant usuaris:', error);
+    statusMessage.value = error.message || "No s'han pogut cercar usuaris.";
   } finally {
     searchingUsers.value = false;
   }
@@ -351,12 +354,12 @@ const sendFriendRequest = async (username) => {
     if (!response.ok || !data.success) {
       throw new Error(data.error || `Error ${response.status}`);
     }
-    statusMessage.value = data.message || `Solicitud enviada a ${username}`;
+    statusMessage.value = data.message || `Sol·licitud enviada a ${username}`;
     searchResults.value = searchResults.value.filter((entry) => entry !== username);
     await loadSocialState();
   } catch (error) {
-    console.error('Error enviando solicitud:', error);
-    statusMessage.value = error.message || 'No se pudo enviar la solicitud.';
+    console.error('Error enviant sol·licitud:', error);
+    statusMessage.value = error.message || "No s'ha pogut enviar la sol·licitud.";
   } finally {
     sendingRequestTo.value = '';
   }
@@ -379,11 +382,11 @@ const acceptFriendRequest = async (fromUsername) => {
     if (!response.ok || !data.success) {
       throw new Error(data.error || `Error ${response.status}`);
     }
-    statusMessage.value = data.message || `Ahora eres aliado de ${fromUsername}`;
+    statusMessage.value = data.message || `Ara ets aliat de ${fromUsername}`;
     await loadSocialState();
   } catch (error) {
-    console.error('Error aceptando solicitud:', error);
-    statusMessage.value = error.message || 'No se pudo aceptar la solicitud.';
+    console.error('Error acceptant sol·licitud:', error);
+    statusMessage.value = error.message || "No s'ha pogut acceptar la sol·licitud.";
   } finally {
     processingRequest.value = '';
   }
@@ -406,18 +409,18 @@ const rejectFriendRequest = async (fromUsername) => {
     if (!response.ok || !data.success) {
       throw new Error(data.error || `Error ${response.status}`);
     }
-    statusMessage.value = data.message || `Solicitud rechazada de ${fromUsername}`;
+    statusMessage.value = data.message || `Sol·licitud rebutjada de ${fromUsername}`;
     await loadSocialState();
   } catch (error) {
-    console.error('Error rechazando solicitud:', error);
-    statusMessage.value = error.message || 'No se pudo rechazar la solicitud.';
+    console.error('Error rebutjant sol·licitud:', error);
+    statusMessage.value = error.message || "No s'ha pogut rebutjar la sol·licitud.";
   } finally {
     processingRequest.value = '';
   }
 };
-const fetchActiveRooms = async () => {
-  loadingRooms.value = true;
-  roomsError.value = '';
+const fetchActiveRooms = async ({ silent = false } = {}) => {
+  if (!silent) loadingRooms.value = true;
+  if (!silent) roomsError.value = '';
   try {
     const response = await fetch('/api/rooms/active', {
       headers: authHeaders()
@@ -428,11 +431,13 @@ const fetchActiveRooms = async () => {
     }
     activeRooms.value = Array.isArray(data.rooms) ? data.rooms : [];
   } catch (error) {
-    console.error('No se pudieron cargar salas:', error);
-    roomsError.value = 'No se pudieron cargar las salas activas.';
-    activeRooms.value = [];
+    console.error("No s'han pogut carregar sales:", error);
+    if (!silent) {
+      roomsError.value = "No s'han pogut carregar les sales actives.";
+      activeRooms.value = [];
+    }
   } finally {
-    loadingRooms.value = false;
+    if (!silent) loadingRooms.value = false;
   }
 };
 const isUserInRoom = (room) => {
@@ -467,8 +472,8 @@ const joinRoom = async (room) => {
     }
     router.push({ name: 'GameRoom', params: { roomCode: room.roomCode } });
   } catch (error) {
-    console.error('Error uniéndose a sala:', error);
-    statusMessage.value = error.message || 'No fue posible unirse a la sala.';
+    console.error('Error en unir-se a la sala:', error);
+    statusMessage.value = error.message || "No ha estat possible unir-se a la sala.";
   } finally {
     joiningRoomCode.value = '';
   }
@@ -486,10 +491,10 @@ const inviteToRoom = async (username) => {
     });
   });
   if (!ownRoom) {
-    statusMessage.value = `No estás en una sala. Crea o únete a una para invitar a ${username}.`;
+    statusMessage.value = `No ets en cap sala. Crea'n una o uneix-te a una per convidar ${username}.`;
     return;
   }
-  const inviteText = `Te invito a mi sala de Valkrypt: ${ownRoom.roomCode}`;
+  const inviteText = `Et convido a la meva sala de Valkrypt: ${ownRoom.roomCode}`;
   try {
     const response = await fetch('/api/social/chat/send', {
       method: 'POST',
@@ -507,7 +512,7 @@ const inviteToRoom = async (username) => {
     if (!response.ok || !data.success) {
       throw new Error(data.error || `Error ${response.status}`);
     }
-    statusMessage.value = `Invitación enviada a ${username} (sala ${ownRoom.roomCode}).`;
+    statusMessage.value = `Invitació enviada a ${username} (sala ${ownRoom.roomCode}).`;
     if (selectedChatFriend.value === username) {
       await fetchChatMessages();
     }
@@ -515,7 +520,7 @@ const inviteToRoom = async (username) => {
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(ownRoom.roomCode).catch(() => {});
     }
-    statusMessage.value = `No se pudo enviar por chat. Código ${ownRoom.roomCode} copiado para invitar a ${username}.`;
+    statusMessage.value = `No s'ha pogut enviar pel xat. Codi ${ownRoom.roomCode} copiat per convidar a ${username}.`;
   }
 };
 const openPublicProfile = async (username) => {
@@ -546,8 +551,8 @@ const fetchChatMessages = async () => {
       chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
     }
   } catch (error) {
-    console.error('Error cargando chat:', error);
-    statusMessage.value = error.message || 'No se pudo cargar el chat privado.';
+    console.error('Error carregant xat:', error);
+    statusMessage.value = error.message || "No s'ha pogut carregar el xat privat.";
   } finally {
     loadingChat.value = false;
   }
@@ -582,8 +587,8 @@ const sendChatMessage = async () => {
       }
     }
   } catch (error) {
-    console.error('Error enviando mensaje:', error);
-    statusMessage.value = error.message || 'No se pudo enviar el mensaje.';
+    console.error('Error enviant missatge:', error);
+    statusMessage.value = error.message || "No s'ha pogut enviar el missatge.";
   } finally {
     sendingChat.value = false;
   }
@@ -604,16 +609,42 @@ onMounted(async () => {
     return;
   }
   await Promise.all([loadSocialState(), fetchActiveRooms()]);
-  socialTimer = setInterval(loadSocialState, 8000);
-  roomsTimer = setInterval(fetchActiveRooms, 5000);
+  socialTimer = setInterval(() => loadSocialState({ silent: true }), 8000);
+  roomsTimer = setInterval(() => fetchActiveRooms({ silent: true }), 5000);
   chatTimer = setInterval(() => {
     if (selectedChatFriend.value) fetchChatMessages();
   }, 4000);
+
+  try {
+    const THREE = await import('three');
+    const fogModule = await import('vanta/dist/vanta.fog.min');
+    const VANTA = fogModule.default;
+    if (!vantaHost.value) return;
+    vantaEffect = VANTA({
+      el: vantaHost.value,
+      THREE,
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200,
+      minWidth: 200,
+      highlightColor: 0x651111,
+      midtoneColor: 0x0e0b0d,
+      lowlightColor: 0x06070a,
+      baseColor: 0x040507,
+      blurFactor: 0.5,
+      speed: 0.5,
+      zoom: 0.62
+    });
+  } catch (error) {
+    console.error('No s’ha pogut carregar Vanta Fog a Friends:', error);
+  }
 });
 onBeforeUnmount(() => {
   if (socialTimer) clearInterval(socialTimer);
   if (roomsTimer) clearInterval(roomsTimer);
   if (chatTimer) clearInterval(chatTimer);
+  if (vantaEffect && typeof vantaEffect.destroy === 'function') vantaEffect.destroy();
 });
 </script>
 <style scoped lang="scss" src="../styles/friends-view.scss"></style>

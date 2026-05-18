@@ -1,24 +1,33 @@
 <template>
   <div class="profile-view">
+    <div ref="vantaHost" class="vanta-layer"></div>
     <div class="ambient-layer"></div>
+    <div class="embers-layer" aria-hidden="true">
+      <span
+        v-for="(seed, idx) in emberSeeds"
+        :key="idx"
+        class="ember"
+        :style="{ left: `${seed.left}%`, animationDuration: `${seed.duration}s`, animationDelay: `${seed.delay}s` }"
+      ></span>
+    </div>
 
-    <nav class="top-nav">
-      <button class="link-btn" @click="goBack">← VOLVER AL BASTIÓN</button>
-      <h1>PERFIL DEL AVENTURERO</h1>
+    <nav class="top-nav animate__animated animate__fadeInDown">
+      <button class="link-btn" @click="goBack">← TORNAR AL BASTIÓ</button>
+      <h1>PERFIL DE L'AVENTURER</h1>
       <button class="link-btn" @click="reloadProfile" :disabled="isLoading || isSaving">
-        {{ isLoading ? 'CARGANDO...' : 'RECARGAR' }}
+        {{ isLoading ? 'CARREGANT...' : 'RECARREGA' }}
       </button>
     </nav>
 
-    <main class="content-shell">
-      <section class="profile-card">
+    <main class="content-shell animate__animated animate__fadeInUp">
+      <section class="profile-card panel-glass">
         <header class="profile-head">
           <div class="avatar-wrap">
-            <img v-if="form.avatar" :src="form.avatar" alt="Avatar del usuario" @error="onAvatarError" />
+            <img v-if="form.avatar" :src="form.avatar" alt="Avatar de l'usuari" @error="onAvatarError" />
             <span v-else>{{ avatarInitial }}</span>
           </div>
           <div class="identity">
-            <p class="kicker">LEGADO DE CUENTA</p>
+            <p class="kicker">LLEGAT DEL COMPTE</p>
             <h2>{{ form.displayName || username }}</h2>
             <p class="meta">@{{ username }}</p>
           </div>
@@ -34,28 +43,28 @@
             <strong>{{ stats.savedCampaigns }}</strong>
           </article>
           <article class="stat">
-            <span>SOLICITUDES</span>
+            <span>SOL·LICITUDS</span>
             <strong>{{ stats.incomingRequests }}</strong>
           </article>
           <article class="stat">
-            <span>PENDIENTES</span>
+            <span>PENDENTS</span>
             <strong>{{ stats.outgoingRequests }}</strong>
           </article>
         </div>
 
         <article class="rank-card">
-          <span class="rank-kicker">RANGO ACTUAL</span>
+          <span class="rank-kicker">RANG ACTUAL</span>
           <strong>{{ stats.rankLabel }}</strong>
-          <p>Puntuación de perfil: {{ stats.profileScore }}</p>
+          <p>Puntuació de perfil: {{ stats.profileScore }}</p>
         </article>
 
         <div class="deep-stats">
           <article>
-            <span>CAPÍTULOS COMPLETADOS</span>
+            <span>CAPÍTOLS COMPLETATS</span>
             <strong>{{ stats.completedChapters }}</strong>
           </article>
           <article>
-            <span>DECISIONES TOMADAS</span>
+            <span>DECISIONS PRESES</span>
             <strong>{{ stats.decisionEntries }}</strong>
           </article>
           <article>
@@ -63,17 +72,17 @@
             <strong>{{ stats.coopTurnsTaken }}</strong>
           </article>
           <article>
-            <span>PALABRAS NARRADAS</span>
+            <span>PARAULES NARRADES</span>
             <strong>{{ stats.totalStoryWords }}</strong>
           </article>
         </div>
 
         <section class="achievements-box">
           <header>
-            <h3>LOGROS</h3>
-            <small>{{ unlockedAchievements }} / {{ achievements.length }} desbloqueados</small>
+            <h3>ASSOLIMENTS</h3>
+            <small>{{ unlockedAchievements }} / {{ achievements.length }} desbloquejats</small>
           </header>
-          <p v-if="achievements.length === 0" class="achievements-empty">Aún no hay logros disponibles.</p>
+          <p v-if="achievements.length === 0" class="achievements-empty">Encara no hi ha assoliments disponibles.</p>
           <div v-else class="achievement-list">
             <article
               v-for="achievement in achievements"
@@ -92,15 +101,15 @@
         </section>
       </section>
 
-      <section class="editor-card">
-        <p v-if="isLoading" class="state-line">Cargando perfil desde base de datos...</p>
+      <section class="editor-card panel-glass">
+        <p v-if="isLoading" class="state-line">Carregant perfil des de la base de dades...</p>
         <p v-else-if="errorMsg" class="state-line error">{{ errorMsg }}</p>
         <p v-else-if="successMsg" class="state-line success">{{ successMsg }}</p>
 
         <form @submit.prevent="saveProfile" class="form-grid">
           <label>
             Nombre visible
-            <input v-model.trim="form.displayName" maxlength="32" placeholder="Tu nombre en campaña" />
+            <input v-model.trim="form.displayName" maxlength="32" placeholder="El teu nom en campanya" />
           </label>
 
           <label>
@@ -129,7 +138,7 @@
               v-model.trim="form.bio"
               maxlength="320"
               rows="5"
-              placeholder="Describe a tu aventurero, su historia y objetivos."
+              placeholder="Descriu el teu aventurer, la seva història i els seus objectius."
             ></textarea>
           </label>
 
@@ -148,7 +157,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -183,6 +192,14 @@ const stats = reactive({
   rankLabel: 'Aprendiz de Aventura'
 });
 const achievements = ref([]);
+const vantaHost = ref(null);
+let vantaEffect = null;
+const emberSeeds = [
+  { left: 7, duration: 13, delay: 1 }, { left: 13, duration: 11, delay: 4 }, { left: 18, duration: 15, delay: 2 },
+  { left: 26, duration: 10, delay: 6 }, { left: 34, duration: 14, delay: 3 }, { left: 42, duration: 12, delay: 5 },
+  { left: 51, duration: 16, delay: 7 }, { left: 59, duration: 9, delay: 2 }, { left: 68, duration: 13, delay: 6 },
+  { left: 76, duration: 11, delay: 1 }, { left: 85, duration: 14, delay: 5 }, { left: 93, duration: 12, delay: 3 }
+];
 
 const avatarInitial = computed(() => {
   const source = form.displayName || username.value || '?';
@@ -267,8 +284,8 @@ const loadProfile = async () => {
     applyUserToForm(data.user || {});
     mergeUserInStorage(data.user || {});
   } catch (error) {
-    console.error('Error cargando perfil:', error);
-    errorMsg.value = 'No se pudo cargar el perfil desde la base de datos.';
+    console.error('Error carregant perfil:', error);
+    errorMsg.value = "No s'ha pogut carregar el perfil des de la base de dades.";
   } finally {
     isLoading.value = false;
   }
@@ -303,10 +320,10 @@ const saveProfile = async () => {
 
     applyUserToForm(data.user || {});
     mergeUserInStorage(data.user || {});
-    successMsg.value = 'Perfil actualizado correctamente.';
+    successMsg.value = 'Perfil actualitzat correctament.';
   } catch (error) {
-    console.error('Error actualizando perfil:', error);
-    errorMsg.value = error.message || 'No se pudo guardar el perfil.';
+    console.error('Error actualitzant perfil:', error);
+    errorMsg.value = error.message || "No s'ha pogut desar el perfil.";
   } finally {
     isSaving.value = false;
   }
@@ -336,15 +353,45 @@ onMounted(async () => {
   userId.value = String(user.id || user._id);
   username.value = String(user.username || 'viajero');
   await loadProfile();
+
+  try {
+    const THREE = await import('three');
+    const fogModule = await import('vanta/dist/vanta.fog.min');
+    const VANTA = fogModule.default;
+    if (!vantaHost.value) return;
+    vantaEffect = VANTA({
+      el: vantaHost.value,
+      THREE,
+      mouseControls: true,
+      touchControls: true,
+      gyroControls: false,
+      minHeight: 200,
+      minWidth: 200,
+      highlightColor: 0x641111,
+      midtoneColor: 0x0f0b0d,
+      lowlightColor: 0x07080a,
+      baseColor: 0x050608,
+      blurFactor: 0.5,
+      speed: 0.5,
+      zoom: 0.62
+    });
+  } catch (error) {
+    console.error('No s’ha pogut carregar Vanta Fog al perfil:', error);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (vantaEffect && typeof vantaEffect.destroy === 'function') vantaEffect.destroy();
 });
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:wght@400;600&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800&family=Crimson+Text:wght@400;600&family=MedievalSharp&display=swap');
 
 .profile-view {
   min-height: 100vh;
-  background: #060606;
+  background: #050607;
   color: #e2ddcf;
   position: relative;
   overflow-x: hidden;
@@ -352,13 +399,20 @@ onMounted(async () => {
   padding-bottom: 48px;
 }
 
+.vanta-layer,
 .ambient-layer {
   position: absolute;
   inset: 0;
+}
+
+.vanta-layer { z-index: 0; }
+
+.ambient-layer {
   pointer-events: none;
+  z-index: 1;
   background:
-    radial-gradient(circle at 20% 20%, rgba(190, 137, 60, 0.1), transparent 42%),
-    radial-gradient(circle at 80% 10%, rgba(119, 46, 22, 0.08), transparent 36%),
+    radial-gradient(circle at 20% 20%, rgba(190, 137, 60, 0.06), transparent 42%),
+    radial-gradient(circle at 80% 10%, rgba(119, 46, 22, 0.05), transparent 36%),
     repeating-linear-gradient(
       90deg,
       transparent 0,
@@ -367,37 +421,68 @@ onMounted(async () => {
     );
 }
 
+.embers-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ember {
+  position: absolute;
+  bottom: -20px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(248, 184, 95, 0.62);
+  box-shadow: 0 0 10px rgba(248, 184, 95, 0.5);
+  animation: ember-float linear infinite;
+  opacity: 0;
+}
+
 .top-nav {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 14;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
   padding: 18px 28px;
-  background: rgba(5, 5, 5, 0.92);
-  border-bottom: 1px solid rgba(197, 160, 89, 0.25);
+  background: rgba(5, 5, 5, 0.78);
+  border-bottom: 1px solid rgba(197, 160, 89, 0.18);
+  backdrop-filter: blur(8px);
+  border-radius: 0 0 14px 14px;
 }
 
 .top-nav h1 {
   margin: 0;
   text-align: center;
   color: #c5a059;
-  font-size: 0.95rem;
-  letter-spacing: 3px;
+  font-size: 1rem;
+  letter-spacing: 2px;
+  font-family: 'MedievalSharp', cursive;
+  font-weight: 400;
 }
 
 .link-btn {
   justify-self: start;
   background: transparent;
-  border: 1px solid rgba(197, 160, 89, 0.25);
+  border: 1px solid rgba(197, 160, 89, 0.18);
   color: #cab489;
   padding: 10px 14px;
   cursor: pointer;
   font-family: inherit;
   font-size: 0.74rem;
   letter-spacing: 1px;
+  border-radius: 999px;
+  transition: 0.22s ease;
+}
+
+.link-btn:hover:not(:disabled) {
+  color: #fff0cc;
+  border-color: rgba(197, 160, 89, 0.42);
+  background: rgba(197, 160, 89, 0.1);
 }
 
 .link-btn:last-child {
@@ -411,7 +496,7 @@ onMounted(async () => {
 
 .content-shell {
   position: relative;
-  z-index: 1;
+  z-index: 10;
   width: min(1120px, calc(100% - 40px));
   margin: 26px auto 0;
   display: grid;
@@ -421,9 +506,10 @@ onMounted(async () => {
 
 .profile-card,
 .editor-card {
-  border: 1px solid rgba(197, 160, 89, 0.22);
-  background: rgba(7, 7, 7, 0.92);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(197, 160, 89, 0.16);
+  background: rgba(7, 7, 7, 0.66);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
 }
 
 .profile-card {
@@ -442,7 +528,7 @@ onMounted(async () => {
   width: 78px;
   height: 78px;
   border-radius: 50%;
-  border: 1px solid rgba(197, 160, 89, 0.36);
+  border: 1px solid rgba(197, 160, 89, 0.28);
   background: radial-gradient(circle at 30% 20%, #cea862, #8f6f32 65%, #2d220f);
   display: grid;
   place-items: center;
@@ -491,9 +577,10 @@ onMounted(async () => {
 
 .rank-card {
   margin-top: 12px;
-  border: 1px solid rgba(197, 160, 89, 0.22);
+  border: 1px solid rgba(197, 160, 89, 0.16);
   background: rgba(0, 0, 0, 0.45);
   padding: 12px;
+  border-radius: 12px;
 }
 
 .rank-card .rank-kicker {
@@ -524,9 +611,10 @@ onMounted(async () => {
 }
 
 .deep-stats article {
-  border: 1px solid rgba(197, 160, 89, 0.16);
+  border: 1px solid rgba(197, 160, 89, 0.13);
   background: rgba(0, 0, 0, 0.32);
   padding: 10px;
+  border-radius: 10px;
 }
 
 .deep-stats span {
@@ -544,9 +632,10 @@ onMounted(async () => {
 
 .achievements-box {
   margin-top: 12px;
-  border: 1px solid rgba(197, 160, 89, 0.18);
+  border: 1px solid rgba(197, 160, 89, 0.14);
   background: rgba(0, 0, 0, 0.35);
   padding: 10px;
+  border-radius: 12px;
 }
 
 .achievements-box header {
@@ -589,6 +678,7 @@ onMounted(async () => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.4);
   padding: 8px;
+  border-radius: 10px;
 }
 
 .achievement-item.unlocked {
@@ -632,9 +722,10 @@ onMounted(async () => {
 }
 
 .stat {
-  border: 1px solid rgba(197, 160, 89, 0.18);
+  border: 1px solid rgba(197, 160, 89, 0.14);
   background: rgba(0, 0, 0, 0.48);
   padding: 11px;
+  border-radius: 10px;
 }
 
 .stat span {
@@ -680,7 +771,7 @@ onMounted(async () => {
   display: grid;
   gap: 7px;
   color: #b89f6d;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   letter-spacing: 1.2px;
 }
 
@@ -689,12 +780,13 @@ onMounted(async () => {
   width: 100%;
   box-sizing: border-box;
   background: rgba(3, 3, 3, 0.86);
-  border: 1px solid rgba(197, 160, 89, 0.22);
+  border: 1px solid rgba(197, 160, 89, 0.16);
   color: #f2ebde;
   padding: 11px 12px;
   font-family: 'Crimson Text', serif;
   font-size: 1rem;
   outline: none;
+  border-radius: 10px;
 }
 
 .form-grid input:focus,
@@ -721,12 +813,14 @@ onMounted(async () => {
 
 .btn-muted,
 .btn-gold {
-  border: 1px solid rgba(197, 160, 89, 0.32);
+  border: 1px solid rgba(197, 160, 89, 0.24);
   padding: 10px 14px;
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 1px;
   font-size: 0.72rem;
+  border-radius: 10px;
+  transition: 0.2s ease;
 }
 
 .btn-muted {
@@ -738,6 +832,38 @@ onMounted(async () => {
   background: #7d5f2f;
   color: #120f09;
   font-weight: 700;
+}
+
+.btn-muted:hover:not(:disabled) {
+  background: rgba(197, 160, 89, 0.08);
+  color: #efdfbb;
+}
+
+.btn-gold:hover:not(:disabled) {
+  background: #96733a;
+}
+
+.panel-glass {
+  animation: shadow-materialize 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes shadow-materialize {
+  0% {
+    opacity: 0;
+    filter: blur(8px) saturate(0.75);
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0) saturate(1);
+    transform: scale(1);
+  }
+}
+
+@keyframes ember-float {
+  0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-100vh) translateX(-34px) scale(1.05); opacity: 0; }
 }
 
 .btn-muted:disabled,
