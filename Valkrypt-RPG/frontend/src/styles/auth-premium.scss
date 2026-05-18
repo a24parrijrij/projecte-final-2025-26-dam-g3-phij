@@ -1,0 +1,293 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --vk-gold: #c5a059;
+  --vk-gold-soft: #e5c788;
+  --vk-blood: #8a0f0f;
+  --vk-bg-0: #060607;
+  --vk-bg-1: #0e0b0a;
+  --vk-panel: rgba(11, 11, 13, 0.88);
+  --vk-line: rgba(197, 160, 89, 0.28);
+}
+
+.auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  color: #f2f2f2;
+  font-family: 'Inter', sans-serif;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(138, 15, 15, 0.22), transparent 36%),
+    radial-gradient(circle at 82% 78%, rgba(197, 160, 89, 0.1), transparent 38%),
+    linear-gradient(135deg, var(--vk-bg-1), var(--vk-bg-0) 50%, #030304);
+}
+
+.auth-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.auth-bg::before,
+.auth-bg::after {
+  content: '';
+  position: absolute;
+  inset: -10%;
+}
+
+.auth-bg::before {
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.045), transparent 40%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 2px,
+      rgba(255, 255, 255, 0.01) 2px,
+      rgba(255, 255, 255, 0.01) 3px
+    );
+  animation: drift 24s linear infinite;
+}
+
+.auth-bg::after {
+  background: radial-gradient(circle at center, transparent 36%, rgba(0, 0, 0, 0.66) 100%);
+}
+
+.auth-wrap {
+  min-height: inherit;
+  display: grid;
+  place-items: center;
+  padding: 36px 18px;
+  position: relative;
+  z-index: 2;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 28px;
+  border: 1px solid var(--vk-line);
+  background: linear-gradient(180deg, rgba(17, 17, 20, 0.94), var(--vk-panel));
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  backdrop-filter: blur(8px);
+  position: relative;
+  transform: translateY(0);
+  animation: auth-card-in 0.6s cubic-bezier(0.2, 0.65, 0.2, 1);
+}
+
+.auth-card::before,
+.auth-card::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--vk-gold), transparent);
+  opacity: 0.6;
+}
+
+.auth-card::before { top: 12px; }
+.auth-card::after { bottom: 12px; }
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-family: 'Cinzel', serif;
+}
+
+.auth-brand img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(197, 160, 89, 0.28));
+}
+
+.auth-brand span {
+  color: #e6e6e6;
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+
+.auth-title {
+  font-family: 'Cinzel', serif;
+  text-align: center;
+  color: var(--vk-gold-soft);
+  letter-spacing: 6px;
+  font-size: clamp(1.8rem, 1.4rem + 1.1vw, 2.5rem);
+  margin: 0 0 8px;
+}
+
+.auth-sub {
+  margin: 0 0 24px;
+  text-align: center;
+  color: #9b9ba0;
+  font-size: 0.88rem;
+  letter-spacing: 0.4px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.field label {
+  font-family: 'Cinzel', serif;
+  color: var(--vk-gold-soft);
+  font-size: 0.72rem;
+  letter-spacing: 1.8px;
+}
+
+.field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(197, 160, 89, 0.22);
+  background: rgba(6, 7, 10, 0.72);
+  color: #efefef;
+  padding: 12px 13px;
+  font-size: 0.96rem;
+  border-radius: 2px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.18s ease;
+}
+
+.field input::placeholder { color: #72737a; }
+
+.field input:focus {
+  outline: none;
+  border-color: var(--vk-gold-soft);
+  background: rgba(16, 16, 20, 0.9);
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.12);
+  transform: translateY(-1px);
+}
+
+.auth-btn {
+  margin-top: 4px;
+  border: 1px solid var(--vk-gold);
+  background:
+    linear-gradient(125deg, rgba(138, 15, 15, 0.9), rgba(117, 16, 16, 0.88));
+  color: #f7f7f7;
+  padding: 12px 14px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: skewX(-20deg);
+}
+
+.auth-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(138, 15, 15, 0.34), 0 0 0 1px rgba(197, 160, 89, 0.25) inset;
+  filter: saturate(1.06);
+}
+
+.auth-btn:hover:not(:disabled)::before {
+  animation: shimmer 0.85s ease;
+}
+
+.auth-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.auth-foot {
+  margin-top: 18px;
+  text-align: center;
+  color: #8e8f96;
+  font-size: 0.82rem;
+}
+
+.auth-foot a {
+  color: var(--vk-gold-soft);
+  text-decoration: none;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.auth-foot a:hover {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(197, 160, 89, 0.45);
+}
+
+.auth-alert {
+  margin-top: 14px;
+  border: 1px solid rgba(255, 126, 126, 0.35);
+  background: rgba(65, 15, 15, 0.32);
+  color: #f9bbbb;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+}
+
+.auth-ok {
+  margin-top: 14px;
+  border: 1px solid rgba(92, 196, 128, 0.35);
+  background: rgba(8, 57, 27, 0.35);
+  color: #b8f2cb;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+}
+
+@keyframes shimmer {
+  from { left: -40%; }
+  to { left: 130%; }
+}
+
+@keyframes auth-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-120px); }
+}
+
+@media (max-width: 540px) {
+  .auth-card {
+    padding: 24px 16px;
+  }
+
+  .auth-title {
+    letter-spacing: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .auth-btn,
+  .auth-btn::before,
+  .auth-bg::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
