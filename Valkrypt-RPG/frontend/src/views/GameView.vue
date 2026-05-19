@@ -40,8 +40,8 @@
         </button>
       </div>
     </nav>
-    <div class="main-layout">
-      <aside class="party-sidebar">
+    <div class="main-layout" :class="{ 'combat-focus-layout': Boolean(combatEncounter) }">
+      <aside class="party-sidebar" v-if="!combatEncounter">
         <div class="sidebar-header">COMPANYS</div>
         <div v-for="hero in party" :key="hero.id" class="hero-card" :class="{ 'hero-dead': hero.hp <= 0 }">
           <div class="hero-avatar-wrapper">
@@ -84,14 +84,16 @@
             <span class="typing-text">EL NARRADOR ESTÀ FORJANT LA HISTÒRIA...</span>
           </div>
         </div>
-        <TacticalCombatPanel
-          v-if="combatEncounter"
-          class="combat-scene-panel"
-          :encounter="combatEncounter"
-          :party="party"
-          @sync-party="handleCombatPartySync"
-          @end="handleCombatEnd"
-        />
+        <transition name="combat-reveal" mode="out-in">
+          <TacticalCombatPanel
+            v-if="combatEncounter"
+            class="combat-scene-panel"
+            :encounter="combatEncounter"
+            :party="party"
+            @sync-party="handleCombatPartySync"
+            @end="handleCombatEnd"
+          />
+        </transition>
         <footer v-if="!combatEncounter" class="action-bar" :class="{ 'bar-disabled': (isTyping || isSubmittingAction) && !chapterEnded }">
           <div v-if="chapterEnded" class="chapter-end">
             <h3>FIN DEL CAPÍTULO</h3>
@@ -135,6 +137,7 @@
         </footer>
       </main>
       <PartyInventoryPanel
+        v-if="!combatEncounter"
         class="inventory-dock"
         :party="party"
         :combat-active="Boolean(combatEncounter)"
@@ -1161,6 +1164,11 @@ $border-alpha: rgba(197, 160, 89, 0.2);
   position: relative;
   z-index: 5;
 }
+.main-layout.combat-focus-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding-inline: 12px;
+}
  .party-sidebar {
   background: linear-gradient(180deg, rgba(8,8,12,0.86), rgba(8,8,12,0.72)); backdrop-filter: blur(12px); border: 1px solid $border-alpha;
   border-radius: 22px;
@@ -1221,8 +1229,10 @@ $border-alpha: rgba(197, 160, 89, 0.2);
 }
 .game-stage.combat-mode {
   border-radius: 20px;
-  padding: 0 12px 12px;
+  padding: 0 10px 10px;
   gap: 8px;
+  border-color: rgba($gold, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 24px 48px rgba(0,0,0,.52), 0 0 32px rgba(81, 52, 143, 0.18);
 }
 .inventory-dock {
   min-height: 0;
@@ -1272,9 +1282,9 @@ $border-alpha: rgba(197, 160, 89, 0.2);
 }
 .log-container.combat-log {
   flex: 0 0 auto;
-  max-height: 116px;
+  max-height: 110px;
   overflow: hidden auto;
-  padding: 14px 14px 4px;
+  padding: 12px 10px 2px;
   gap: 12px;
   mask-image: none;
 }
@@ -1293,6 +1303,16 @@ $border-alpha: rgba(197, 160, 89, 0.2);
 .combat-scene-panel {
   flex: 1 1 0;
   min-height: 0;
+}
+.combat-reveal-enter-active,
+.combat-reveal-leave-active {
+  transition: opacity 0.32s ease, transform 0.32s ease, filter 0.32s ease;
+}
+.combat-reveal-enter-from,
+.combat-reveal-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  filter: blur(3px);
 }
 .ai-typing {
   display: flex; align-items: center; gap: 15px; color: $gold; font-family: 'Cinzel'; font-size: 0.8rem;

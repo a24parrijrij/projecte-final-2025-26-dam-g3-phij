@@ -79,7 +79,6 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getApiErrorMessage } from '../services/apiClient';
-import { resolveCampaignAssetKey } from '../assets/valkryptAssets';
 
 const router = useRouter();
 const route = useRoute();
@@ -166,7 +165,7 @@ const start = async () => {
     campaignId: campaignData.value.id || campaignId.value,
     campaignTitle: campaignData.value.title,
     location: campaignData.value.location,
-    currentBackground: resolveCampaignAssetKey(campaignData.value) || campaignData.value.img || '',
+    currentBackground: campaignData.value.img || '',
     dayLimit: campaignData.value.dayLimit,
     party: party.value,
     turn: 1

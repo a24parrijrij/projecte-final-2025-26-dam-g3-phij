@@ -27,6 +27,11 @@
       <button class="tab" :class="{ active: tab === 'reflex' }" @click="tab = 'reflex'">Reflexos</button>
       <button class="tab" :class="{ active: tab === 'memory' }" @click="tab = 'memory'">Memòria</button>
       <button class="tab" :class="{ active: tab === 'coop' }" @click="tab = 'coop'">Coop Online</button>
+      <button class="tab" :class="{ active: tab === 'timing' }" @click="tab = 'timing'">Timing</button>
+      <button class="tab" :class="{ active: tab === 'sequence' }" @click="tab = 'sequence'">Seqüència</button>
+      <button class="tab" :class="{ active: tab === 'dodge' }" @click="tab = 'dodge'">Esquiva</button>
+      <button class="tab" :class="{ active: tab === 'aim' }" @click="tab = 'aim'">Punteria</button>
+      <button class="tab" :class="{ active: tab === 'arithmetic' }" @click="tab = 'arithmetic'">Càlcul</button>
     </section>
 
     <section class="panel">
@@ -120,6 +125,74 @@
       </div>
     </section>
 
+    <section v-if="tab === 'timing'" class="panel">
+      <h3>Pols Arcà (Timing)</h3>
+      <p>Atura la barra el més a prop possible del centre.</p>
+      <div class="timing-track">
+        <div class="timing-center"></div>
+        <div class="timing-cursor" :style="{ left: `${timing.pos}%` }"></div>
+      </div>
+      <div class="row">
+        <span>Ronda: {{ timing.round }}/5</span>
+        <span>Punts: {{ timing.score }}</span>
+      </div>
+      <div class="row wrap">
+        <button class="btn" @click="startTiming" :disabled="timing.running">Començar</button>
+        <button class="btn" @click="stopTimingHit" :disabled="!timing.running">Aturar</button>
+      </div>
+    </section>
+
+    <section v-if="tab === 'sequence'" class="panel">
+      <h3>Runes en Seqüència</h3>
+      <p>Prem números en ordre creixent abans que acabi el temps.</p>
+      <div class="row"><span>Temps: {{ sequence.timeLeft }}s</span><span>Punts: {{ sequence.score }}</span></div>
+      <div class="sequence-grid">
+        <button v-for="n in sequence.numbers" :key="n.id" class="seq-btn" @click="hitSequence(n.value)" :disabled="!sequence.running">{{ n.value }}</button>
+      </div>
+      <button class="btn" @click="startSequence" :disabled="sequence.running">{{ sequence.running ? 'En curs...' : 'Començar' }}</button>
+    </section>
+
+    <section v-if="tab === 'dodge'" class="panel">
+      <h3>Pluja de Fletxes (Esquiva)</h3>
+      <p>Mou-te esquerra/dreta i evita els projectils. Tecles ← i →.</p>
+      <div class="dodge-arena">
+        <div class="dodge-player" :style="{ left: `${dodge.playerX}%` }"></div>
+        <div v-for="a in dodge.arrows" :key="a.id" class="dodge-arrow" :style="{ left: `${a.x}%`, top: `${a.y}%` }">↓</div>
+      </div>
+      <div class="row"><span>Vides: {{ dodge.lives }}</span><span>Supervivència: {{ dodge.score }}</span></div>
+      <button class="btn" @click="startDodge" :disabled="dodge.running">{{ dodge.running ? 'En curs...' : 'Començar' }}</button>
+    </section>
+
+    <section v-if="tab === 'aim'" class="panel">
+      <h3>Diana Mística (Punteria)</h3>
+      <p>Fes clic a les dianes que apareixen.</p>
+      <div class="arena">
+        <button
+          v-for="t in aim.targets"
+          :key="t.id"
+          class="target"
+          :style="{ left: `${t.x}%`, top: `${t.y}%` }"
+          @click="hitAim(t.id)"
+        >◎</button>
+      </div>
+      <div class="row"><span>Punts: {{ aim.score }}</span><span>Temps: {{ aim.timeLeft }}s</span></div>
+      <button class="btn" @click="startAim" :disabled="aim.running">{{ aim.running ? 'En curs...' : 'Començar' }}</button>
+    </section>
+
+    <section v-if="tab === 'arithmetic'" class="panel">
+      <h3>Ritual de Càlcul</h3>
+      <p>Resol operacions ràpidament.</p>
+      <div class="math-box">
+        <strong>{{ arithmetic.question }}</strong>
+        <input v-model="arithmetic.answer" @keydown.enter.prevent="submitArithmetic" placeholder="Resposta" />
+      </div>
+      <div class="row"><span>Punts: {{ arithmetic.score }}</span><span>Temps: {{ arithmetic.timeLeft }}s</span></div>
+      <div class="row wrap">
+        <button class="btn" @click="startArithmetic" :disabled="arithmetic.running">{{ arithmetic.running ? 'En curs...' : 'Començar' }}</button>
+        <button class="btn" @click="submitArithmetic" :disabled="!arithmetic.running">Enviar</button>
+      </div>
+    </section>
+
     <p v-if="feedback" class="feedback">{{ feedback }}</p>
   </div>
 </template>
@@ -136,7 +209,7 @@ const feedback = ref('');
 const tab = ref('reflex');
 const party = ref([]);
 const selectedHeroId = ref('');
-const progression = reactive({ level: 1, xp: 0, nextLevelXp: 120, gamesPlayed: 0, byType: { memory: 0, reflex: 0, coop_reflex: 0 } });
+const progression = reactive({ level: 1, xp: 0, nextLevelXp: 120, gamesPlayed: 0, byType: { memory: 0, reflex: 0, coop_reflex: 0, timing: 0, sequence: 0, dodge: 0, aim: 0, arithmetic: 0 } });
 const leaderboard = ref([]);
 const leaderboardLoading = ref(false);
 const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -147,6 +220,11 @@ let reflexTick = null;
 let reflexSpawn = null;
 
 const memory = reactive({ running: false, level: 1, errors: 0, colors: ['c1', 'c2', 'c3', 'c4'], sequence: [], input: [], flashIndex: -1, acceptInput: false });
+const timing = reactive({ running: false, score: 0, round: 0, pos: 0, dir: 1, timer: null });
+const sequence = reactive({ running: false, score: 0, timeLeft: 25, expected: 1, numbers: [], timer: null });
+const dodge = reactive({ running: false, lives: 3, score: 0, playerX: 50, arrows: [], tick: null, spawn: null, arrowId: 0 });
+const aim = reactive({ running: false, score: 0, timeLeft: 20, targets: [], tick: null, spawn: null, targetId: 0 });
+const arithmetic = reactive({ running: false, score: 0, timeLeft: 25, question: '', result: 0, answer: '', timer: null });
 
 const coop = reactive({ joinCode: '', room: null, poll: null, running: false, localScore: 0, timeLeft: 15, timer: null });
 const matchmaking = reactive({ searching: false, queueSize: 0, poll: null });
@@ -249,6 +327,201 @@ function startReflex() {
       await claimReward('reflex', reflex.score * 10, 20000);
     }
   }, 1000);
+}
+
+function stopTiming() {
+  timing.running = false;
+  if (timing.timer) clearInterval(timing.timer);
+  timing.timer = null;
+}
+
+function startTiming() {
+  stopTiming();
+  timing.running = true;
+  timing.score = 0;
+  timing.round = 1;
+  timing.pos = 0;
+  timing.dir = 1;
+  timing.timer = setInterval(() => {
+    timing.pos += timing.dir * 2.5;
+    if (timing.pos >= 100) { timing.pos = 100; timing.dir = -1; }
+    if (timing.pos <= 0) { timing.pos = 0; timing.dir = 1; }
+  }, 40);
+}
+
+async function stopTimingHit() {
+  if (!timing.running) return;
+  const diff = Math.abs(50 - timing.pos);
+  const points = Math.max(0, 20 - Math.floor(diff / 2.5));
+  timing.score += points;
+  timing.round += 1;
+  if (timing.round > 5) {
+    stopTiming();
+    await claimReward('timing', timing.score * 5, 12000);
+  }
+}
+
+function makeSequenceNumbers() {
+  const nums = [];
+  for (let i = 1; i <= 9; i += 1) nums.push(i);
+  nums.sort(() => Math.random() - 0.5);
+  sequence.numbers = nums.map((value, idx) => ({ id: `${idx}_${value}_${Date.now()}`, value }));
+  sequence.expected = 1;
+}
+
+function stopSequence() {
+  sequence.running = false;
+  if (sequence.timer) clearInterval(sequence.timer);
+  sequence.timer = null;
+}
+
+function startSequence() {
+  stopSequence();
+  sequence.running = true;
+  sequence.score = 0;
+  sequence.timeLeft = 25;
+  makeSequenceNumbers();
+  sequence.timer = setInterval(async () => {
+    sequence.timeLeft -= 1;
+    if (sequence.timeLeft <= 0) {
+      stopSequence();
+      await claimReward('sequence', sequence.score * 8, 25000);
+    }
+  }, 1000);
+}
+
+function hitSequence(value) {
+  if (!sequence.running) return;
+  if (value === sequence.expected) {
+    sequence.score += 1;
+    sequence.expected += 1;
+    if (sequence.expected > 9) {
+      sequence.score += 3;
+      makeSequenceNumbers();
+    }
+  } else {
+    sequence.score = Math.max(0, sequence.score - 1);
+  }
+}
+
+function moveDodgePlayer(delta) {
+  if (!dodge.running) return;
+  dodge.playerX = Math.max(5, Math.min(95, dodge.playerX + delta));
+}
+
+function onKeyDown(event) {
+  if (event.key === 'ArrowLeft') moveDodgePlayer(-6);
+  if (event.key === 'ArrowRight') moveDodgePlayer(6);
+}
+
+function stopDodge() {
+  dodge.running = false;
+  if (dodge.tick) clearInterval(dodge.tick);
+  if (dodge.spawn) clearInterval(dodge.spawn);
+  dodge.tick = null;
+  dodge.spawn = null;
+}
+
+function startDodge() {
+  stopDodge();
+  dodge.running = true;
+  dodge.lives = 3;
+  dodge.score = 0;
+  dodge.playerX = 50;
+  dodge.arrows = [];
+  dodge.spawn = setInterval(() => {
+    dodge.arrowId += 1;
+    dodge.arrows.push({ id: dodge.arrowId, x: 8 + Math.random() * 84, y: 0 });
+  }, 550);
+  dodge.tick = setInterval(async () => {
+    dodge.score += 1;
+    dodge.arrows = dodge.arrows.map((a) => ({ ...a, y: a.y + 5 })).filter((a) => {
+      const hit = a.y >= 90 && Math.abs(a.x - dodge.playerX) < 8;
+      if (hit) dodge.lives -= 1;
+      return a.y <= 102 && !hit;
+    });
+    if (dodge.lives <= 0) {
+      const finalScore = dodge.score;
+      stopDodge();
+      await claimReward('dodge', finalScore, 18000);
+    }
+  }, 120);
+}
+
+function stopAim() {
+  aim.running = false;
+  if (aim.tick) clearInterval(aim.tick);
+  if (aim.spawn) clearInterval(aim.spawn);
+  aim.tick = null;
+  aim.spawn = null;
+}
+
+function startAim() {
+  stopAim();
+  aim.running = true;
+  aim.score = 0;
+  aim.timeLeft = 20;
+  aim.targets = [];
+  aim.spawn = setInterval(() => {
+    aim.targetId += 1;
+    aim.targets.push({ id: aim.targetId, x: 8 + Math.random() * 84, y: 10 + Math.random() * 78 });
+    if (aim.targets.length > 5) aim.targets.shift();
+  }, 500);
+  aim.tick = setInterval(async () => {
+    aim.timeLeft -= 1;
+    if (aim.timeLeft <= 0) {
+      const finalScore = aim.score;
+      stopAim();
+      await claimReward('aim', finalScore * 6, 20000);
+    }
+  }, 1000);
+}
+
+function hitAim(targetId) {
+  if (!aim.running) return;
+  const before = aim.targets.length;
+  aim.targets = aim.targets.filter((target) => target.id !== targetId);
+  if (aim.targets.length !== before) aim.score += 1;
+}
+
+function newArithmeticQuestion() {
+  const a = 1 + Math.floor(Math.random() * 20);
+  const b = 1 + Math.floor(Math.random() * 20);
+  const ops = ['+', '-', '*'];
+  const op = ops[Math.floor(Math.random() * ops.length)];
+  arithmetic.question = `${a} ${op} ${b} = ?`;
+  arithmetic.result = op === '+' ? a + b : op === '-' ? a - b : a * b;
+  arithmetic.answer = '';
+}
+
+function stopArithmetic() {
+  arithmetic.running = false;
+  if (arithmetic.timer) clearInterval(arithmetic.timer);
+  arithmetic.timer = null;
+}
+
+function startArithmetic() {
+  stopArithmetic();
+  arithmetic.running = true;
+  arithmetic.score = 0;
+  arithmetic.timeLeft = 25;
+  newArithmeticQuestion();
+  arithmetic.timer = setInterval(async () => {
+    arithmetic.timeLeft -= 1;
+    if (arithmetic.timeLeft <= 0) {
+      const finalScore = arithmetic.score;
+      stopArithmetic();
+      await claimReward('arithmetic', finalScore * 7, 25000);
+    }
+  }, 1000);
+}
+
+function submitArithmetic() {
+  if (!arithmetic.running) return;
+  const value = Number(arithmetic.answer);
+  if (Number.isFinite(value) && value === arithmetic.result) arithmetic.score += 1;
+  else arithmetic.score = Math.max(0, arithmetic.score - 1);
+  newArithmeticQuestion();
 }
 
 async function flashSequence() {
@@ -474,13 +747,20 @@ onMounted(() => {
     return;
   }
   setupMiniCoopRealtime();
+  window.addEventListener('keydown', onKeyDown);
   loadProgress();
   loadWeeklyLeaderboard();
 });
 
 onBeforeUnmount(() => {
   stopReflex();
+  stopTiming();
+  stopSequence();
+  stopDodge();
+  stopAim();
+  stopArithmetic();
   stopCoopRun();
+  window.removeEventListener('keydown', onKeyDown);
   if (coop.poll) clearInterval(coop.poll);
   if (matchmaking.poll) clearInterval(matchmaking.poll);
   leaveMatchmaking();
@@ -513,6 +793,18 @@ onBeforeUnmount(() => {
 .memory-cell.c1 { background: #8a2d2d; } .memory-cell.c2 { background: #2c6a8e; } .memory-cell.c3 { background: #3a7b4d; } .memory-cell.c4 { background: #8b6b2f; }
 .coop-box { border: 1px solid #473318; border-radius: 12px; padding: 12px; }
 .big-hit { font-size: 1.2rem; padding: 14px 20px; }
+.timing-track { position: relative; height: 28px; border: 1px solid #5e4820; border-radius: 999px; background: #12151d; overflow: hidden; }
+.timing-center { position: absolute; left: 49%; width: 2%; top: 0; bottom: 0; background: rgba(225, 194, 125, 0.55); }
+.timing-cursor { position: absolute; top: 2px; bottom: 2px; width: 10px; border-radius: 6px; background: #f1d28f; transform: translateX(-50%); }
+.sequence-grid { display: grid; grid-template-columns: repeat(3, 90px); gap: 8px; margin: 8px 0; }
+.seq-btn { height: 56px; border-radius: 10px; border: 1px solid #5f4a27; background: #121722; color: #efd8a9; font-weight: 700; }
+.dodge-arena { position: relative; height: 280px; border-radius: 12px; border: 1px solid #614923; background: rgba(9, 11, 16, 0.8); overflow: hidden; }
+.dodge-player { position: absolute; bottom: 8px; width: 28px; height: 28px; border-radius: 50%; background: #8cc4ff; box-shadow: 0 0 14px rgba(140, 196, 255, 0.6); transform: translateX(-50%); }
+.dodge-arrow { position: absolute; font-size: 18px; color: #f8b07f; transform: translateX(-50%); }
+.target { position: absolute; transform: translate(-50%, -50%); width: 52px; height: 52px; border-radius: 50%; border: 1px solid #5f4e30; background: rgba(33, 26, 31, 0.88); color: #f4d69a; font-size: 24px; }
+.math-box { display: grid; gap: 8px; margin-bottom: 10px; }
+.math-box strong { font-size: 1.4rem; color: #f0d7a2; }
+.math-box input { max-width: 240px; }
 .feedback { margin-top: 8px; color: #f3d39c; }
 .muted { color: #b8ab8f; font-size: .92rem; margin: 4px 0 10px; }
 .rank-table { width: 100%; border-collapse: collapse; font-size: .92rem; }

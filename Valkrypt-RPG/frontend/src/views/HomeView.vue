@@ -36,6 +36,34 @@
           <button class="start-button" @click="goToLogin">COMENÇA LA HISTÒRIA</button>
           <router-link to="/register" class="ghost-button">CREA COMPTE</router-link>
         </div>
+        <section class="external-banners animate__animated animate__fadeInUp animate__delay-1s">
+          <a
+            class="ext-banner"
+            href="https://cdmon.com"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span class="ext-logo">CD</span>
+            <div class="ext-copy">
+              <small>HOSTING & DOMINIS</small>
+              <strong>cdmon.com</strong>
+            </div>
+            <span class="ext-cta">ANAR</span>
+          </a>
+          <a
+            class="ext-banner"
+            href="https://dotacio.domini.cat/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span class="ext-logo">DC</span>
+            <div class="ext-copy">
+              <small>GESTIÓ DE DOTACIÓ</small>
+              <strong>dotacio.domini.cat</strong>
+            </div>
+            <span class="ext-cta">ANAR</span>
+          </a>
+        </section>
 
         <section class="feature-grid animate__animated animate__fadeInUp animate__delay-2s">
           <article v-for="feature in featureCards" :key="feature.title" class="feature-card">
@@ -347,6 +375,77 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
+.external-banners {
+  width: min(1000px, 94%);
+  margin: 0 auto 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ext-banner {
+  border: 1px solid rgba(212, 175, 55, 0.34);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(26, 14, 10, 0.68), rgba(10, 10, 14, 0.82));
+  color: #e9d3a5;
+  text-decoration: none;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  min-height: 86px;
+}
+
+.ext-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  display: grid;
+  place-items: center;
+  color: #f2ddb1;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(160deg, rgba(32, 20, 10, 0.72), rgba(12, 12, 16, 0.85));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ext-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.ext-copy small {
+  color: #b9a073;
+  font-size: 0.62rem;
+  letter-spacing: 1.2px;
+}
+
+.ext-copy strong {
+  color: #f0deb5;
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+}
+
+.ext-cta {
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  color: #f2ddb1;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.ext-banner:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 213, 138, 0.7);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.36), 0 0 18px rgba(212, 175, 55, 0.16);
+}
 
 .feature-card {
   border: 1px solid rgba(212, 175, 55, 0.22);
@@ -413,6 +512,22 @@ onBeforeUnmount(() => {
 
   .feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .external-banners {
+    grid-template-columns: 1fr;
+  }
+
+  .ext-banner {
+    grid-template-columns: 46px 1fr auto;
+    min-height: 74px;
+    padding: 11px 12px;
+    gap: 9px;
+  }
+
+  .ext-logo {
+    width: 46px;
+    height: 46px;
   }
 
   .feature-card {

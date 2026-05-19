@@ -84,6 +84,30 @@
         </div>
       </section>
 
+      <section class="partners-shell animate__animated animate__fadeInUp animate__delay-1s">
+        <header class="shell-head">
+          <h2>PARTNERS & SERVEIS</h2>
+        </header>
+        <div class="partners-grid">
+          <a class="partner-banner" href="https://cdmon.com" target="_blank" rel="noopener noreferrer">
+            <span class="partner-logo">CD</span>
+            <div class="partner-copy">
+              <small>HOSTING & DOMINIS</small>
+              <strong>cdmon.com</strong>
+            </div>
+            <span class="partner-cta">OBRIR</span>
+          </a>
+          <a class="partner-banner" href="https://dotacio.domini.cat/" target="_blank" rel="noopener noreferrer">
+            <span class="partner-logo">DC</span>
+            <div class="partner-copy">
+              <small>GESTIÓ DE DOTACIÓ</small>
+              <strong>dotacio.domini.cat</strong>
+            </div>
+            <span class="partner-cta">OBRIR</span>
+          </a>
+        </div>
+      </section>
+
       <section class="adventures-shell">
         <header class="shell-head">
           <h2>LES MEVES AVENTURES</h2>
@@ -176,7 +200,6 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { getApiErrorMessage } from '../services/apiClient';
-import { DEFAULT_CAMPAIGN_IMAGE, resolveCampaignImage } from '../assets/valkryptAssets';
 
 const router = useRouter();
 const userInitial = ref('?');
@@ -189,6 +212,7 @@ const savesError = ref('');
 const savedGames = ref([]);
 const availableCampaigns = ref([]);
 const saveDeleteLoading = ref('');
+const SAVE_FALLBACK_IMG = 'https://images.unsplash.com/photo-1518709268805-4e9042af2ece?q=80&w=1200&auto=format&fit=crop';
 const vantaHost = ref(null);
 let vantaEffect = null;
 
@@ -207,12 +231,7 @@ const loadCampaigns = async () => {
     const response = await fetch('/api/game/campaigns');
     if (!response.ok) throw new Error(`Error ${response.status}`);
     const campaigns = await response.json();
-    availableCampaigns.value = Array.isArray(campaigns)
-      ? campaigns.map((campaign) => ({
-          ...campaign,
-          img: resolveCampaignImage(campaign, DEFAULT_CAMPAIGN_IMAGE)
-        }))
-      : [];
+    availableCampaigns.value = Array.isArray(campaigns) ? campaigns : [];
   } catch (err) {
     console.error("No s'ha pogut carregar el catàleg de campanyes:", err);
     campaignsError.value = getApiErrorMessage(err, "No s'han pogut carregar campanyes des de la base de dades.");
@@ -237,13 +256,13 @@ const loadSavedGames = async (userId) => {
     if (!response.ok) throw new Error(`Error ${response.status}`);
     const saves = await response.json();
     savedGames.value = Array.isArray(saves)
-        ? saves.map((save) => ({
+      ? saves.map((save) => ({
           id: save.id || `${save.campaignId || 'save'}-${save.updatedAt || Date.now()}`,
           title: String(save.title || 'PARTIDA').toUpperCase(),
           location: String(save.location || 'DESCONEGUT').toUpperCase(),
           lastEvent: save.lastEvent || 'Sense esdeveniments recents.',
           date: formatSaveDate(save.updatedAt),
-          img: resolveCampaignImage(save, DEFAULT_CAMPAIGN_IMAGE)
+          img: save.img || SAVE_FALLBACK_IMG
         }))
       : [];
   } catch (err) {
@@ -648,6 +667,75 @@ $gold: #c5a059;
   padding: 14px;
   border-radius: 16px;
 }
+.partners-shell {
+  margin-top: 14px;
+  border: 1px solid rgba($gold, 0.2);
+  background: rgba(10, 10, 14, 0.62);
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.partners-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.partner-banner {
+  text-decoration: none;
+  border: 1px solid rgba($gold, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(26, 14, 10, 0.72), rgba(10, 10, 14, 0.86));
+  min-height: 86px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 50px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  transition: .22s ease;
+}
+.partner-banner:hover {
+  transform: translateY(-2px);
+  border-color: rgba($gold, 0.62);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28), 0 0 18px rgba($gold, 0.14);
+}
+
+.partner-logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  border: 1px solid rgba($gold, 0.36);
+  display: grid;
+  place-items: center;
+  color: #f2ddb1;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(160deg, rgba(32, 20, 10, 0.72), rgba(12, 12, 16, 0.85));
+}
+
+.partner-copy {
+  display: grid;
+  gap: 2px;
+}
+.partner-copy small {
+  color: #b9a073;
+  font-size: 0.62rem;
+  letter-spacing: 1.1px;
+}
+.partner-copy strong {
+  color: #f0deb5;
+  font-size: 1rem;
+}
+
+.partner-cta {
+  border: 1px solid rgba($gold, 0.45);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.67rem;
+  letter-spacing: 1px;
+  color: #f2ddb1;
+  background: rgba(0, 0, 0, 0.3);
+}
 
 .training-grid {
   display: grid;
@@ -1039,6 +1127,10 @@ $gold: #c5a059;
   }
 
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .partners-grid {
     grid-template-columns: 1fr;
   }
 

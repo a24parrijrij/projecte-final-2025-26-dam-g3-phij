@@ -25,6 +25,19 @@
         <strong>{{ enemyIntentLabel }}</strong>
       </div>
     </section>
+    <section class="turn-order-strip" v-if="localHeroes.length > 0">
+      <small>ORDEN DE TURNO</small>
+      <div class="turn-order-list">
+        <span
+          v-for="hero in orderedHeroes"
+          :key="`order_chip_${hero.id}`"
+          class="turn-chip"
+          :class="{ active: activeHero && activeHero.id === hero.id, dead: hero.hp <= 0 }"
+        >
+          {{ hero.icon }} {{ hero.name }}
+        </span>
+      </div>
+    </section>
     <transition-group name="hud-toast" tag="div" class="hud-toast-stack">
       <article
         v-for="toast in hudToasts"
@@ -71,6 +84,12 @@
     </section>
 
     <section class="duel-stage">
+      <div
+        v-if="impactFx.active"
+        :key="`impact_${impactFx.token}`"
+        class="impact-frame"
+        :class="impactFx.tone"
+      ></div>
       <article class="enemy-stage" :class="[enemy.type, enemyFx.tone]">
         <div class="enemy-aura"></div>
         <span
@@ -82,10 +101,13 @@
           {{ enemyFx.pop }}
         </span>
         <div class="enemy-stage-top">
-          <span class="enemy-icon">{{ enemy.icon }}</span>
+          <span class="enemy-icon" :class="`type-${enemy.type}`">
+            <span>{{ enemy.icon }}</span>
+          </span>
           <div class="enemy-identity">
             <small>{{ enemy.typeLabel }}</small>
             <strong>{{ enemy.name }}</strong>
+            <span class="enemy-epithet">{{ enemyEpithet }}</span>
           </div>
         </div>
 
@@ -152,6 +174,7 @@
             <div class="ally-xp-fill" :style="{ width: `${heroXpPercent(hero)}%` }"></div>
           </div>
           <small class="ally-xp-text">XP {{ hero.experience || 0 }} / {{ hero.nextLevelXp || 1 }}</small>
+          <small class="ally-focus-text">FOCO {{ hero.combatEnergy || 0 }}/5</small>
           <div class="ally-attr-row">
             <span>ATQ {{ hero.attack || 0 }}</span>
             <span>DEF {{ hero.defense || 0 }}</span>
@@ -176,8 +199,19 @@
     </section>
 
     <section class="combat-controls" v-if="!isPlanningOrder && activeHero">
+      <div class="control-header">
+        <div class="control-title">
+          <small>FASE DE ACCIÓN</small>
+          <strong>{{ activeHero.name }} · turno {{ turnPointer + 1 }}/{{ roundOrder.length }}</strong>
+        </div>
+        <div class="target-badge">
+          <small>OBJETIVO</small>
+          <strong>{{ enemy.name }} · HP {{ enemy.hp }}/{{ enemy.maxHp }}</strong>
+        </div>
+      </div>
       <div class="control-tabs">
         <button class="control-tab-btn" :class="{ active: activeControlTab === 'state' }" @click="activeControlTab = 'state'">ESTADO</button>
+        <button class="control-tab-btn" :class="{ active: activeControlTab === 'specials' }" @click="activeControlTab = 'specials'">ESPECIALES</button>
         <button class="control-tab-btn" :class="{ active: activeControlTab === 'skills' }" @click="activeControlTab = 'skills'">HABILIDADES</button>
         <button class="control-tab-btn" :class="{ active: activeControlTab === 'items' }" @click="activeControlTab = 'items'">INVENTARIO</button>
       </div>
@@ -196,6 +230,7 @@
         <div class="actor-stats">
           <span>NV {{ activeHero.level || 1 }}</span>
           <span>XP {{ activeHero.experience || 0 }}/{{ activeHero.nextLevelXp || 1 }}</span>
+          <span>FOCO {{ activeHero.combatEnergy || 0 }}/5</span>
           <span>ATQ {{ activeStats.attack }}</span>
           <span>DEF {{ activeStats.defense }}</span>
           <span>MAG {{ activeStats.magic }}</span>
@@ -215,6 +250,7 @@
             <button class="combat-btn primary" :disabled="controlsLocked" @click="performBasicAttack">ATACAR</button>
             <button class="combat-btn primary" :disabled="controlsLocked" @click="performDefend">DEFENDER</button>
           </div>
+          <p class="lock-reason" v-if="controlsLocked">{{ controlLockReason }}</p>
           <div class="state-stats-grid">
             <span><b>ATAQUE</b>{{ activeStats.attack }}</span>
             <span><b>DEFENSA</b>{{ activeStats.defense }}</span>
@@ -224,6 +260,29 @@
         </div>
 
         <div class="action-grid" v-else key="tab_actions">
+          <div class="skill-block" v-if="activeControlTab === 'specials'">
+            <div class="block-head">
+              <h4>ATAQUES ESPECIALES</h4>
+              <small>{{ activeSpecialMoves.length }}</small>
+            </div>
+            <div class="action-list">
+              <article v-for="special in activeSpecialMoves" :key="special.id" class="action-card special-card">
+                <div class="action-copy">
+                  <strong>{{ special.name }}</strong>
+                  <small>{{ special.description }}</small>
+                  <small class="special-meta">COSTE {{ special.cost }} FOCO</small>
+                </div>
+                <button
+                  class="combat-btn minor"
+                  :disabled="controlsLocked || (activeHero.combatEnergy || 0) < special.cost"
+                  @click="performSpecialMove(special.id)"
+                >
+                  LANZAR
+                </button>
+              </article>
+              <p v-if="activeSpecialMoves.length === 0" class="empty-note">Sin especiales disponibles.</p>
+            </div>
+          </div>
           <div class="skill-block" v-if="activeControlTab === 'skills'">
           <div class="block-head">
             <h4>HABILIDADES</h4>
@@ -270,7 +329,15 @@
     </section>
 
     <div v-if="recentLines.length > 0" class="combat-feed">
-      <span v-for="(line, idx) in recentLines" :key="`${idx}_${line}`" class="feed-line">{{ line }}</span>
+      <span
+        v-for="(entry, idx) in recentFeedEntries"
+        :key="`${idx}_${entry.line}`"
+        class="feed-line"
+        :class="`is-${entry.kind}`"
+      >
+        <i :class="entry.icon"></i>
+        {{ entry.line }}
+      </span>
     </div>
   </section>
 </template>
@@ -287,7 +354,8 @@ import {
   useHeroConsumable,
   heroConsumables,
   normalizeStatusEffects,
-  grantExperienceToParty
+  grantExperienceToParty,
+  roleArchetype
 } from '../utils/partySystem';
 
 const props = defineProps({
@@ -332,6 +400,7 @@ const activeControlTab = ref('state');
 const ownsLocalPartyState = ref(false);
 const enemyFx = ref({ tone: '', pop: '', token: 0 });
 const heroFx = ref({});
+const impactFx = ref({ active: false, tone: '', token: 0 });
 const hudToasts = ref([]);
 const comboStreak = ref(0);
 const enemyIntentBias = ref(0);
@@ -369,7 +438,15 @@ const activeHeroId = computed(() => roundOrder.value[turnPointer.value] || '');
 const activeHero = computed(() => localHeroes.value.find((hero) => hero.id === activeHeroId.value) || null);
 const activeStats = computed(() => computeHeroCombatStats(activeHero.value));
 const activeConsumables = computed(() => heroConsumables(activeHero.value));
+const activeSpecialMoves = computed(() => specialMovesForHero(activeHero.value));
 const controlsLocked = computed(() => locked.value || finished.value || !activeHero.value || activeHero.value.hp <= 0);
+const controlLockReason = computed(() => {
+  if (finished.value) return 'El encuentro ya ha finalizado.';
+  if (!activeHero.value) return 'Esperando próximo turno.';
+  if (activeHero.value.hp <= 0) return `${activeHero.value.name} está incapacitado.`;
+  if (locked.value) return 'Resolviendo acción...';
+  return '';
+});
 const enemyHealthPercent = computed(() => {
   const maxHp = Number(enemy.value?.maxHp || 0);
   const hp = Number(enemy.value?.hp || 0);
@@ -377,6 +454,13 @@ const enemyHealthPercent = computed(() => {
   return Math.max(0, Math.min(100, (hp / maxHp) * 100));
 });
 const recentLines = computed(() => battleLog.value.slice(-4));
+const orderedHeroes = computed(() => {
+  const source = roundOrder.value.length > 0 ? roundOrder.value : localHeroes.value.map((hero) => hero.id);
+  return source
+    .map((heroId) => localHeroes.value.find((hero) => hero.id === heroId))
+    .filter(Boolean);
+});
+const recentFeedEntries = computed(() => recentLines.value.map((line) => classifyFeedLine(line)));
 const momentumPercent = computed(() => Math.min(100, comboStreak.value * 20));
 const momentumTitle = computed(() => {
   if (comboStreak.value >= 4) return 'DOMINIO TÁCTICO';
@@ -392,6 +476,11 @@ const enemyIntentLabel = computed(() => {
   if (intentScore >= 11) return 'GOLPE BRUTAL';
   if (intentScore >= 8) return 'ATAQUE DIRECTO';
   return 'BUSCA APERTURA';
+});
+const enemyEpithet = computed(() => {
+  if (enemy.value.type === 'jefe') return 'Entidad dominante del abismo';
+  if (enemy.value.type === 'elite') return 'Amenaza reforzada de asalto';
+  return 'Hostil en formación de escaramuza';
 });
 const EMPTY_FX_STATE = Object.freeze({ tone: '', pop: '', token: 0 });
 const HERO_PORTRAITS = Object.freeze({
@@ -517,6 +606,38 @@ function compactSkillMeta(skill) {
   return `${type.toUpperCase()} · ${dice} · PODER ${Math.max(0, toInt(skill?.power, 0))}`;
 }
 
+function specialMovesForHero(hero) {
+  if (!hero) return [];
+  const archetype = roleArchetype(hero.role || '');
+  if (archetype === 'warrior') {
+    return [
+      { id: 'special_warrior_breaker', name: 'Embate Quebrante', description: 'Golpe demoledor que reduce la defensa enemiga.', cost: 2, dice: 'd14', power: 7, mode: 'breaker' },
+      { id: 'special_warrior_guard', name: 'Juramento de Hierro', description: 'Refuerza tu guardia y recupera vida mínima.', cost: 2, heal: 10, guardBonus: 6, mode: 'guard' }
+    ];
+  }
+  if (archetype === 'rogue') {
+    return [
+      { id: 'special_rogue_shadow', name: 'Asalto Fantasma', description: 'Ataque veloz con alta precisión y crítico.', cost: 2, dice: 'd12', power: 6, accuracy: 4, critBoost: 5, mode: 'burst' },
+      { id: 'special_rogue_bleed', name: 'Hemorragia Profunda', description: 'Causa daño y aplica sangrado severo.', cost: 2, dice: 'd10', power: 4, mode: 'bleed' }
+    ];
+  }
+  if (archetype === 'mage') {
+    return [
+      { id: 'special_mage_comet', name: 'Cometa Arcano', description: 'Explosión mágica de alto impacto.', cost: 2, dice: 'd16', power: 7, mode: 'burst' },
+      { id: 'special_mage_prison', name: 'Prisión Rúnica', description: 'Daño moderado y posible aturdimiento.', cost: 2, dice: 'd10', power: 4, mode: 'stun' }
+    ];
+  }
+  if (archetype === 'cleric') {
+    return [
+      { id: 'special_cleric_nova', name: 'Nova Vital', description: 'Cura a toda la escuadra.', cost: 2, heal: 12, mode: 'party_heal' },
+      { id: 'special_cleric_judgement', name: 'Juicio Solar', description: 'Rayo sagrado que debilita al objetivo.', cost: 2, dice: 'd12', power: 5, mode: 'debuff' }
+    ];
+  }
+  return [
+    { id: 'special_generic_overdrive', name: 'Sobrecarga Táctica', description: 'Golpe especial sin afinidad.', cost: 2, dice: 'd12', power: 5, mode: 'burst' }
+  ];
+}
+
 function heroXpPercent(hero) {
   if (!hero) return 0;
   const xp = Math.max(0, toInt(hero.experience, 0));
@@ -558,6 +679,27 @@ function compactConsumableResult(message, fallbackActor, fallbackTarget) {
   };
 }
 
+function classifyFeedLine(line) {
+  const text = String(line || '');
+  const lowered = text.toLowerCase();
+  if (lowered.includes('falla') || lowered.includes('esquiva')) {
+    return { line: text, kind: 'miss', icon: 'fas fa-wind' };
+  }
+  if (lowered.includes('cura') || lowered.includes('restaura') || lowered.includes('+')) {
+    return { line: text, kind: 'heal', icon: 'fas fa-heart' };
+  }
+  if (lowered.includes('sube a nv') || lowered.includes('xp')) {
+    return { line: text, kind: 'progress', icon: 'fas fa-star' };
+  }
+  if (lowered.includes('guardia') || lowered.includes('defensa')) {
+    return { line: text, kind: 'guard', icon: 'fas fa-shield-alt' };
+  }
+  if (lowered.includes('derrotado') || lowered.includes('victoria') || lowered.includes('retirada')) {
+    return { line: text, kind: 'result', icon: 'fas fa-flag-checkered' };
+  }
+  return { line: text, kind: 'attack', icon: 'fas fa-burst' };
+}
+
 function scheduleFxReset(applyReset, duration = 760) {
   const timer = setTimeout(() => {
     fxTimers.delete(timer);
@@ -569,6 +711,7 @@ function scheduleFxReset(applyReset, duration = 760) {
 function resetFeedbackStates() {
   enemyFx.value = { tone: '', pop: '', token: 0 };
   heroFx.value = {};
+  impactFx.value = { active: false, tone: '', token: 0 };
 }
 
 function triggerEnemyFx(tone, pop = '', duration = 760) {
@@ -577,6 +720,15 @@ function triggerEnemyFx(tone, pop = '', duration = 760) {
   scheduleFxReset(() => {
     if (enemyFx.value.token !== token) return;
     enemyFx.value = { tone: '', pop: '', token };
+  }, duration);
+}
+
+function triggerImpactFrame(tone = 'hit', duration = 420) {
+  const token = (impactFx.value.token || 0) + 1;
+  impactFx.value = { active: true, tone, token };
+  scheduleFxReset(() => {
+    if (impactFx.value.token !== token) return;
+    impactFx.value = { active: false, tone: '', token };
   }, duration);
 }
 
@@ -771,13 +923,15 @@ function mergeTacticalState(nextList) {
       return {
         ...hero,
         guarding: false,
-        guardBonus: 0
+        guardBonus: 0,
+        combatEnergy: 0
       };
     }
     return {
       ...hero,
       guarding: Boolean(prev.guarding),
-      guardBonus: toInt(prev.guardBonus, 0)
+      guardBonus: toInt(prev.guardBonus, 0),
+      combatEnergy: clamp(toInt(prev.combatEnergy, 0), 0, 5)
     };
   });
 }
@@ -799,6 +953,7 @@ function heroSnapshot() {
     level: hero.level,
     experience: hero.experience,
     nextLevelXp: hero.nextLevelXp,
+    combatEnergy: hero.combatEnergy,
     attack: hero.attack,
     defense: hero.defense,
     magic: hero.magic,
@@ -1000,6 +1155,13 @@ function applyHealToHero(heroId, amount) {
   }));
 }
 
+function adjustHeroEnergy(heroId, delta) {
+  updateHeroById(heroId, (hero) => ({
+    ...hero,
+    combatEnergy: clamp(toInt(hero.combatEnergy, 0) + toInt(delta, 0), 0, 5)
+  }));
+}
+
 function applyEnemyTurn() {
   const targets = aliveHeroes.value;
   if (targets.length === 0) {
@@ -1021,15 +1183,18 @@ function applyEnemyTurn() {
     updateHeroById(target.id, (hero) => ({ ...hero, hp: Math.max(0, hero.hp - damage) }));
     triggerEnemyFx('fx-strike', '', 480);
     triggerHeroFx(target.id, target.guarding ? 'fx-guard' : 'fx-hit', `-${damage}`, 880);
+    triggerImpactFrame(target.guarding ? 'guard' : 'hit', 450);
     pushBattleLine(pickLine([
       `${enemy.value.name} golpea a ${target.name} · ${damage}`,
       `${enemy.value.name} rompe la guardia de ${target.name} · ${damage}`,
       `${target.name} recibe un impacto feroz · ${damage}`
     ], `${enemy.value.name} golpea a ${target.name} · ${damage}`));
     comboStreak.value = 0;
+    adjustHeroEnergy(target.id, 1);
   } else {
     triggerEnemyFx('fx-miss', 'FALLO', 680);
     triggerHeroFx(target.id, 'fx-miss', 'ESQUIVA', 760);
+    triggerImpactFrame('miss', 320);
     pushBattleLine(pickLine([
       `${enemy.value.name} falla.`,
       `${target.name} esquiva por poco.`,
@@ -1098,10 +1263,12 @@ function performBasicAttack() {
     applyDamageToEnemy(totalDamage);
     triggerHeroFx(actor.id, 'fx-cast', 'ATAQUE', 420);
     triggerEnemyFx('fx-hit', `-${totalDamage}`, 880);
+    triggerImpactFrame('hit', 430);
     if (finisherBonus > 0) {
       pushHudToast('RÁFAGA', `Daño extra +${finisherBonus}`, 'level', 1800);
     }
     comboStreak.value += 1;
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(pickLine([
       `${actor.name} golpea por ${totalDamage}.`,
       `${actor.name} conecta un corte limpio · ${totalDamage}.`,
@@ -1110,7 +1277,9 @@ function performBasicAttack() {
   } else {
     triggerHeroFx(actor.id, 'fx-cast', 'ATAQUE', 420);
     triggerEnemyFx('fx-miss', 'FALLO', 680);
+    triggerImpactFrame('miss', 320);
     comboStreak.value = 0;
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(pickLine([
       `${actor.name} falla.`,
       `${actor.name} pierde el tempo del asalto.`,
@@ -1134,6 +1303,7 @@ function performDefend() {
   }));
   triggerHeroFx(actor.id, 'fx-guard', 'GUARDIA', 900);
   comboStreak.value = Math.max(0, comboStreak.value - 1);
+  adjustHeroEnergy(actor.id, 1);
   pushBattleLine(`${actor.name} entra en guardia.`);
   finalizeHeroAction();
 }
@@ -1157,7 +1327,9 @@ function performSkill(skillId) {
     const healValue = damageRoll(skill.dice, skill.power + actorStats.healPower, 0);
     applyHealToHero(targetId, healValue);
     triggerHeroFx(targetId, 'fx-heal', `+${healValue}`, 900);
+    triggerImpactFrame('heal', 420);
     comboStreak.value = Math.max(0, comboStreak.value - 1);
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(`${actor.name} cura ${healValue} a ${heroName(targetId)}.`);
     finalizeHeroAction();
     return;
@@ -1171,7 +1343,9 @@ function performSkill(skillId) {
       guardBonus: Math.max(toInt(hero.guardBonus, 0), bonus)
     }));
     triggerHeroFx(actor.id, 'fx-guard', '+DEF', 900);
+    triggerImpactFrame('guard', 360);
     comboStreak.value = Math.max(0, comboStreak.value - 1);
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(`${actor.name} refuerza defensa.`);
     finalizeHeroAction();
     return;
@@ -1185,7 +1359,9 @@ function performSkill(skillId) {
     };
     triggerHeroFx(actor.id, 'fx-cast', 'RITUAL', 520);
     triggerEnemyFx('fx-debuff', `PREC-${penalty}`, 900);
+    triggerImpactFrame('debuff', 430);
     comboStreak.value += 1;
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(`${actor.name} baja la precision enemiga.`);
     finalizeHeroAction();
     return;
@@ -1205,12 +1381,16 @@ function performSkill(skillId) {
     applyDamageToEnemy(totalDamage);
     triggerHeroFx(actor.id, 'fx-cast', 'HABIL', 520);
     triggerEnemyFx('fx-hit', `-${totalDamage}`, 900);
+    triggerImpactFrame('hit', 430);
     comboStreak.value += 1;
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(`${actor.name} usa ${skill.name} · ${totalDamage}.`);
   } else {
     triggerHeroFx(actor.id, 'fx-cast', 'HABIL', 520);
     triggerEnemyFx('fx-miss', 'FALLO', 680);
+    triggerImpactFrame('miss', 320);
     comboStreak.value = 0;
+    adjustHeroEnergy(actor.id, 1);
     pushBattleLine(`${actor.name} falla ${skill.name}.`);
   }
 
@@ -1236,13 +1416,94 @@ function performConsumable(itemId) {
     pushBattleLine(feedback.line);
     if (feedback.heal > 0) {
       triggerHeroFx(targetId, 'fx-heal', `+${feedback.heal}`, 900);
+      triggerImpactFrame('heal', 420);
       comboStreak.value = Math.max(0, comboStreak.value - 1);
+      adjustHeroEnergy(actor.id, 1);
     } else if (feedback.cleanse > 0) {
       triggerHeroFx(targetId, 'fx-heal', 'LIMPIA', 900);
+      triggerImpactFrame('heal', 360);
       comboStreak.value = Math.max(0, comboStreak.value - 1);
+      adjustHeroEnergy(actor.id, 1);
     } else {
       triggerHeroFx(targetId, 'fx-cast', 'OBJ', 760);
+      triggerImpactFrame('buff', 340);
+      adjustHeroEnergy(actor.id, 1);
     }
+  }
+  finalizeHeroAction();
+}
+
+function performSpecialMove(specialId) {
+  if (controlsLocked.value) return;
+  const actor = activeHero.value;
+  if (!actor) return;
+  const special = specialMovesForHero(actor).find((entry) => entry.id === specialId);
+  if (!special) return;
+  const cost = Math.max(1, toInt(special.cost, 2));
+  if (toInt(actor.combatEnergy, 0) < cost) {
+    pushBattleLine('Foco insuficiente para especial.');
+    return;
+  }
+
+  locked.value = true;
+  const actorStats = computeHeroCombatStats(actor);
+  adjustHeroEnergy(actor.id, -cost);
+  triggerHeroFx(actor.id, 'fx-cast', 'SPECIAL', 640);
+
+  if (special.mode === 'guard') {
+    updateHeroById(actor.id, (hero) => ({
+      ...hero,
+      guarding: true,
+      guardBonus: Math.max(toInt(hero.guardBonus, 0), toInt(special.guardBonus, 5))
+    }));
+    applyHealToHero(actor.id, Math.max(6, toInt(special.heal, 10)));
+    triggerHeroFx(actor.id, 'fx-guard', 'AEGIS', 980);
+    triggerImpactFrame('guard', 380);
+    pushBattleLine(`${actor.name} activa ${special.name}.`);
+    finalizeHeroAction();
+    return;
+  }
+
+  if (special.mode === 'party_heal') {
+    localHeroes.value
+      .filter((hero) => hero.hp > 0)
+      .forEach((hero) => applyHealToHero(hero.id, Math.max(8, toInt(special.heal, 12) + Math.floor(actorStats.magic / 3))));
+    triggerImpactFrame('heal', 460);
+    pushBattleLine(`${actor.name} libera ${special.name}.`);
+    finalizeHeroAction();
+    return;
+  }
+
+  const targetDefense = 11 + enemy.value.defense;
+  const hitCheck = resolveHit(actorStats.attack, targetDefense, toInt(special.accuracy, 0));
+  if (hitCheck.hit) {
+    const damage = damageRoll(special.dice || 'd12', toInt(special.power, 0), actorStats.attack);
+    const bonus = Math.floor(actorStats.magic / 2);
+    const totalDamage = Math.max(1, damage + bonus);
+    applyDamageToEnemy(totalDamage);
+    triggerEnemyFx('fx-hit', `-${totalDamage}`, 980);
+    triggerImpactFrame('hit', 500);
+    comboStreak.value += 1;
+    pushHudToast('ESPECIAL', `${special.name} · ${totalDamage} daño`, 'level', 1800);
+
+    if (special.mode === 'breaker') {
+      enemy.value = { ...enemy.value, defense: Math.max(0, enemy.value.defense - 1) };
+      pushBattleLine(`${actor.name} quebranta la defensa enemiga.`);
+    } else if (special.mode === 'bleed') {
+      tryApplyStatusToEnemy({ type: 'bleed', chance: 100, duration: 2, potency: 3 }, special.name);
+    } else if (special.mode === 'stun') {
+      tryApplyStatusToEnemy({ type: 'stun', chance: 38, duration: 1, potency: 0 }, special.name);
+    } else if (special.mode === 'debuff') {
+      enemy.value = { ...enemy.value, accuracyPenalty: Math.max(enemy.value.accuracyPenalty, 2) };
+      pushBattleLine(`${enemy.value.name} queda desorientado.`);
+    }
+
+    pushBattleLine(`${actor.name} ejecuta ${special.name} · ${totalDamage}.`);
+  } else {
+    triggerEnemyFx('fx-miss', 'FALLO', 720);
+    triggerImpactFrame('miss', 320);
+    comboStreak.value = 0;
+    pushBattleLine(`${actor.name} falla ${special.name}.`);
   }
   finalizeHeroAction();
 }
@@ -1453,6 +1714,42 @@ $crimson: #8a1c1c;
 }
 .hud-toast-move {
   transition: transform 0.32s ease;
+}
+.turn-order-strip {
+  border: 1px solid rgba($gold, 0.2);
+  border-radius: 11px;
+  padding: 8px 12px;
+  background: rgba(7, 8, 12, 0.66);
+  display: grid;
+  gap: 7px;
+}
+.turn-order-strip small {
+  font-size: 0.56rem;
+  letter-spacing: 1.1px;
+  color: var(--color-text-dim);
+  font-family: var(--font-display);
+}
+.turn-order-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.turn-chip {
+  border: 1px solid rgba($gold, 0.24);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.63rem;
+  color: #d9c291;
+  background: rgba(18, 18, 24, 0.76);
+  transition: all .2s ease;
+}
+.turn-chip.active {
+  border-color: rgba($gold, 0.7);
+  color: #f6e1b5;
+  background: linear-gradient(140deg, rgba(90, 62, 24, 0.26), rgba(25, 33, 56, 0.3));
+}
+.turn-chip.dead {
+  opacity: 0.45;
 }
 .head-chip {
   border: 1px solid rgba($gold, 0.25);
@@ -1713,6 +2010,206 @@ $crimson: #8a1c1c;
       linear-gradient(170deg, rgba(15, 15, 22, 0.94), rgba(8, 8, 13, 0.9));
   }
 }
+
+.duel-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  position: relative;
+}
+
+.impact-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 60px rgba(255, 255, 255, 0.08);
+  animation: impactFlash 0.45s ease;
+  z-index: 4;
+}
+.impact-frame.hit {
+  border-color: rgba(236, 104, 104, 0.72);
+  box-shadow: inset 0 0 80px rgba(236, 104, 104, 0.2);
+}
+.impact-frame.guard {
+  border-color: rgba(123, 174, 247, 0.72);
+  box-shadow: inset 0 0 80px rgba(123, 174, 247, 0.2);
+}
+.impact-frame.heal {
+  border-color: rgba(108, 214, 156, 0.72);
+  box-shadow: inset 0 0 80px rgba(108, 214, 156, 0.2);
+}
+.impact-frame.debuff,
+.impact-frame.buff {
+  border-color: rgba(191, 143, 243, 0.72);
+  box-shadow: inset 0 0 80px rgba(191, 143, 243, 0.2);
+}
+.impact-frame.miss {
+  border-color: rgba(188, 202, 230, 0.65);
+  box-shadow: inset 0 0 60px rgba(188, 202, 230, 0.12);
+}
+
+.enemy-stage {
+  min-height: 320px;
+  border-radius: 15px;
+  padding: 16px 16px 14px;
+}
+
+.enemy-stage-top {
+  gap: 12px;
+}
+
+.enemy-icon {
+  font-size: clamp(4.4rem, 9vw, 6.8rem) !important;
+  line-height: 1;
+  width: clamp(96px, 11vw, 130px);
+  height: clamp(96px, 11vw, 130px);
+  border-radius: 50%;
+  border: 1px solid rgba($gold, 0.35);
+  background: radial-gradient(circle at 30% 28%, rgba(255,255,255,0.18), rgba(16,16,22,0.95));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.45), 0 0 28px rgba(207, 157, 90, 0.2);
+}
+
+.enemy-icon > span {
+  animation: enemyFloat 2.8s ease-in-out infinite;
+}
+
+.enemy-icon.type-jefe {
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.55), 0 0 34px rgba(218, 92, 92, 0.3);
+}
+
+.enemy-icon.type-elite {
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), 0 0 28px rgba(156, 118, 228, 0.28);
+}
+
+.enemy-identity strong {
+  font-size: clamp(1.2rem, 2.9vw, 1.85rem);
+  line-height: 1.05;
+}
+
+.enemy-epithet {
+  font-size: 0.66rem;
+  color: #b9aa8a;
+  letter-spacing: 0.4px;
+}
+
+.enemy-health-fill {
+  transition: width 0.28s ease;
+}
+
+.ally-rack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.ally-card {
+  min-height: 148px;
+  padding: 10px 10px 9px;
+  border-radius: 12px;
+}
+
+.ally-icon {
+  width: 42px !important;
+  height: 52px !important;
+  border-radius: 11px;
+}
+
+.ally-card strong {
+  font-size: 0.8rem;
+}
+
+.ally-level,
+.ally-hp-text,
+.ally-xp-text {
+  font-size: 0.62rem !important;
+}
+.ally-focus-text {
+  font-size: 0.6rem;
+  color: #79b8ff;
+  letter-spacing: 0.35px;
+}
+
+.ally-attr-row {
+  font-size: 0.57rem !important;
+  gap: 6px !important;
+}
+
+.control-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.control-title,
+.target-badge {
+  border: 1px solid rgba($gold, 0.2);
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: rgba(8, 10, 16, 0.7);
+  display: grid;
+  gap: 2px;
+}
+
+.control-title small,
+.target-badge small {
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  font-family: var(--font-display);
+}
+
+.control-title strong,
+.target-badge strong {
+  font-size: 0.72rem;
+  color: #efdab0;
+  letter-spacing: 0.3px;
+}
+
+.lock-reason {
+  margin: 4px 0 0;
+  color: #d7b073;
+  font-size: 0.68rem;
+  letter-spacing: 0.2px;
+}
+
+.combat-feed {
+  border-top: 1px solid rgba($gold, 0.2);
+  padding-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.feed-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba($gold, 0.16);
+  border-radius: 9px;
+  background: rgba(9, 10, 14, 0.66);
+  padding: 7px 9px;
+  font-size: 0.69rem;
+  color: #e2d3b0;
+}
+
+.feed-line i {
+  width: 14px;
+  text-align: center;
+  opacity: 0.9;
+}
+
+.feed-line.is-attack { border-color: rgba(231, 173, 95, 0.3); }
+.feed-line.is-heal { border-color: rgba(96, 191, 147, 0.4); color: #bfe9d0; }
+.feed-line.is-miss { border-color: rgba(133, 151, 189, 0.34); color: #c7d6ef; }
+.feed-line.is-guard { border-color: rgba(122, 163, 236, 0.36); color: #cde0ff; }
+.feed-line.is-progress { border-color: rgba($gold, 0.45); color: #f1ddaf; }
+.feed-line.is-result { border-color: rgba(203, 119, 119, 0.42); color: #efb9b9; }
 .duel-stage {
   display: grid;
   gap: 12px;
@@ -2401,6 +2898,14 @@ $crimson: #8a1c1c;
   font-size: 0.67rem;
   line-height: 1.2;
 }
+.special-card {
+  border-color: rgba(120, 159, 231, 0.32);
+  background: linear-gradient(160deg, rgba(14, 19, 34, 0.72), rgba(12, 12, 15, 0.78));
+}
+.special-meta {
+  color: #9ec9ff !important;
+  font-size: 0.62rem !important;
+}
 .empty-note {
   color: #a89d87;
   font-size: 0.67rem;
@@ -2408,19 +2913,20 @@ $crimson: #8a1c1c;
   padding: 2px 0;
 }
 .combat-feed {
-  display: flex;
-  flex-wrap: wrap;
+  border-top: 1px solid rgba($gold, 0.2);
+  padding-top: 10px;
+  display: grid;
   gap: 6px;
 }
 .feed-line {
-  border-radius: 8px;
-  border: 1px solid rgba($gold, 0.18);
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 9px;
+  border: 1px solid rgba($gold, 0.16);
+  background: rgba(9, 10, 14, 0.66);
   color: #ead5ac;
-  padding: 6px 10px;
-  font-size: 0.67rem;
-  letter-spacing: 0.68px;
-  font-family: var(--font-display);
+  padding: 7px 9px;
+  font-size: 0.69rem;
+  letter-spacing: 0.35px;
+  font-family: var(--font-ui);
 }
 @keyframes panelRise {
   from {
@@ -2431,6 +2937,15 @@ $crimson: #8a1c1c;
     opacity: 1;
     transform: translateY(0);
   }
+}
+@keyframes impactFlash {
+  0% { opacity: 0; transform: scale(0.995); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes enemyFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.03); }
 }
 @keyframes popRise {
   0% { opacity: 0; transform: translateY(10px) scale(0.92); }
@@ -2472,6 +2987,12 @@ $crimson: #8a1c1c;
 }
 @media (max-width: 900px) {
   .combat-atmosphere {
+    grid-template-columns: 1fr;
+  }
+  .duel-stage {
+    grid-template-columns: 1fr;
+  }
+  .control-header {
     grid-template-columns: 1fr;
   }
   .combat-title h3 {
